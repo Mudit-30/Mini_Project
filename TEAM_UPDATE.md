@@ -130,7 +130,7 @@ python data/generate_dataset.py
 | 1 | Node agent telemetry collection (`agent.py`) | 🟡 Basic — needs keyboard/mouse + gRPC |
 | 1 | Observer AI training dataset | ✅ Done (10k rows) |
 | 2 | gRPC communication between nodes and server | ⬜ Not started |
-| 2 | DBSCAN + K-Means Observer AI training | ⬜ Not started |
+| 2 | DBSCAN + K-Means Observer AI training | ✅ Done (accuracy: 99.8%) |
 | 2 | Auto-retrain pipeline (every 4 hours) | ⬜ Not started |
 | 3 | DQN Dispatcher simulation environment | ⬜ Not started |
 | 3 | DQN training with carbon penalty rewards | ⬜ Not started |
@@ -168,9 +168,8 @@ python data/generate_dataset.py
 
 ## ⚡ Immediate Next Steps (This Week)
 
-1. **Train the Observer AI** — Run DBSCAN + K-Means on `telemetry_dataset.csv`
-2. **Complete the node agent** — Add real keyboard/mouse event counting to `agent.py`
-3. **Set up gRPC** — Wire agent → server telemetry streaming
+1. **Complete the node agent** — Add real keyboard/mouse event counting to `agent.py`
+2. **Set up gRPC** — Wire agent → server telemetry streaming
 
 ---
 
