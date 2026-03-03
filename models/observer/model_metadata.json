@@ -1,0 +1,28 @@
+{
+  "model_name": "observer_ai",
+  "version": "1.0.0",
+  "trained_at": "2026-03-03T15:20:00.600674+00:00",
+  "accuracy": 0.998095,
+  "noise_ratio": 0.0026,
+  "feature_columns": [
+    "cpu_usage_pct",
+    "ram_usage_pct",
+    "kb_events_per_min",
+    "mouse_events_per_min",
+    "net_io_bytes",
+    "process_count",
+    "carbon_intensity_gco2"
+  ],
+  "label_map": {
+    "1": "active_user",
+    "2": "busy_hardware",
+    "0": "idle"
+  },
+  "hyperparameters": {
+    "dbscan_eps": 1.5,
+    "dbscan_min_samples": 5,
+    "kmeans_n_clusters": 3,
+    "kmeans_n_init": 20,
+    "kmeans_random_state": 42
+  }
+}
