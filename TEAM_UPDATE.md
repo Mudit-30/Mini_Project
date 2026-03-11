@@ -127,16 +127,16 @@ python data/generate_dataset.py
 |---|---|---|
 | 1 | Central FastAPI server skeleton | ✅ Done |
 | 1 | SQLite DB + Alembic migrations setup | ✅ Done |
-| 1 | Node agent telemetry collection (`agent.py`) | 🟡 Basic — needs keyboard/mouse + gRPC |
+| 1 | Node agent telemetry collection (`agent.py`) | ✅ Done (with pynput) |
 | 1 | Observer AI training dataset | ✅ Done (10k rows) |
-| 2 | gRPC communication between nodes and server | ⬜ Not started |
+| 2 | gRPC communication between nodes and server | ✅ Done |
 | 2 | DBSCAN + K-Means Observer AI training | ✅ Done (accuracy: 99.8%) |
-| 2 | Auto-retrain pipeline (every 4 hours) | ⬜ Not started |
-| 3 | DQN Dispatcher simulation environment | ⬜ Not started |
+| 2 | Auto-retrain pipeline (every 4 hours) | ✅ Done |
+| 3 | DQN Dispatcher simulation environment | ⬜ In Progress |
 | 3 | DQN training with carbon penalty rewards | ⬜ Not started |
 | 3 | ONNX export for < 5ms inference | ⬜ Not started |
-| 4 | Next.js dashboard + WebSocket live charts | ⬜ Not started |
-| 4 | 3-laptop real deployment & 24hr test | ⬜ Not started |
+| 4 | Next.js dashboard + WebSocket live charts | ✅ Done (Port 3005) |
+| 4 | 3-laptop real deployment & 24hr test | 🟡 In Progress (Ready for team) |
 
 ---
 
@@ -188,14 +188,34 @@ python -m venv .venv
 # 3. Install all dependencies
 pip install -r requirements.txt
 
-# 4. Run the server
-cd gridmind_server
-uvicorn app.main:app --reload
+# 4. Run the GridMind System (Master Only)
+python start_gridmind.py
 
-# 5. (Separate terminal) Run the node agent
+# 5. Connect Teammate Laptops (Worker Nodes)
+# Ask the Master for their current Node IP (shown in start_gridmind.py logs)
 cd gridmind_node
-python agent.py
+python agent.py --server-ip <MASTER_IP> --node-id <YOUR_NAME>
 ```
+
+---
+
+## 🛠️ How to Connect Your Laptop (Teammates)
+
+To join the GridMind cluster, you only need to run the **Node Agent**. Follow these steps:
+
+1. **Prerequisites**: Ensure you have Python 3.10+ installed and you are on the **same Wi-Fi network** as the Master laptop.
+2. **Setup**:
+   ```bash
+   git clone <repo-url>
+   cd Mini_Project
+   pip install -r requirements.txt
+   ```
+3. **Run the Agent**:
+   Find the **Master Node IP** (e.g., `10.118.95.208`) from the Master laptop's `start_gridmind.py` output. Then run:
+   ```bash
+   python gridmind_node/agent.py --server-ip 10.118.95.208 --node-id teammate_name
+   ```
+4. **Verify**: Open `http://<MASTER_IP>:3005` in your browser to see your laptop pop up on the dashboard!
 
 ---
 

@@ -2,3 +2,14 @@
 __pycache__
 *.pyc
 .env
+*.log
+*.db
+*.db-shm
+*.db-wal
+node_modules
+.next
+dist
+build
+.DS_Store
+*.sh
+*.bat

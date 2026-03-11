@@ -1,7 +1,7 @@
 {
   "model_name": "observer_ai",
   "version": "1.0.0",
-  "trained_at": "2026-03-03T15:20:00.600674+00:00",
+  "trained_at": "2026-03-10T06:11:12.945664+00:00",
   "accuracy": 0.998095,
   "noise_ratio": 0.0026,
   "feature_columns": [

@@ -249,9 +249,36 @@ class ObserverInference:
         """Return a copy of the model metadata dictionary."""
         return dict(self._metadata)
 
+    def reload(self) -> None:
+        """
+        Hot-swap model artefacts from disk without restarting the server.
+
+        Called by the auto-retrain job after a successful training run.
+        Thread-safe: replaces all three internal references atomically
+        (Python GIL ensures individual attribute assignments are atomic).
+        """
+        log.info("Reloading ObserverInference artefacts from %s…", self._model_dir)
+        new_scaler   = self._load_artifact("scaler.joblib")
+        new_km       = self._load_artifact("kmeans.joblib")
+        new_metadata = self._load_metadata()
+        new_map      = self._parse_label_map()
+
+        # Atomic swap
+        self._scaler           = new_scaler
+        self._km               = new_km
+        self._metadata         = new_metadata
+        self._cluster_to_label = new_map
+
+        log.info(
+            "ObserverInference reloaded | version=%s | accuracy=%.4f",
+            self._metadata.get("version", "unknown"),
+            self._metadata.get("accuracy", float("nan")),
+        )
+
     def __repr__(self) -> str:
         return (
             f"ObserverInference("
             f"version={self._metadata.get('version')!r}, "
             f"accuracy={self._metadata.get('accuracy'):.4f})"
         )
+

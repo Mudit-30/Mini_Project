@@ -33,6 +33,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
+# Fix Windows console encoding for emojis
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except (AttributeError, IOError):
+        pass
+
 import joblib
 import numpy as np
 import pandas as pd

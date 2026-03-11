@@ -22,6 +22,14 @@ Features (matching agent.py + carbon context):
 import numpy as np
 import pandas as pd
 import os
+import sys
+
+# Fix Windows console encoding for emojis
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except (AttributeError, IOError):
+        pass
 
 # ─── Reproducibility ──────────────────────────────────────────────────────────
 RNG = np.random.default_rng(seed=42)
