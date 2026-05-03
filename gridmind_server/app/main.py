@@ -27,7 +27,7 @@ from functools import partial
 import sys
 import uvicorn
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
@@ -43,6 +43,7 @@ from app.db.database import create_tables
 from app.grpc_server import serve_grpc
 from app.ml.observer_inference import ObserverInference
 from app.routes.nodes import router as nodes_router
+from app.routes.tasks import router as tasks_router
 from app.websockets import manager as ws_manager
 
 logging.basicConfig(
@@ -65,6 +66,22 @@ async def lifespan(app: FastAPI):
     observer = ObserverInference()
     app.state.observer = observer
     logger.info("Observer AI ready: %r", observer)
+
+    # ── 2.5 Load Dispatcher AI & Start Live Validation Loop ────────────────────
+    dispatcher_task = None  # must be defined before try-block for safe cleanup
+    try:
+        from app.ml.dispatcher_inference import DispatcherInference
+        dispatcher_engine = DispatcherInference()
+        logger.info("Dispatcher AI loaded from ONNX.")
+        
+        from app.jobs.dispatcher_loop import run_dispatcher_loop
+        dispatcher_task = asyncio.create_task(
+            run_dispatcher_loop(dispatcher_engine), name="dispatcher-loop"
+        )
+        logger.info("Dispatcher live websocket validation loop started.")
+    except Exception as e:
+        logger.warning("Dispatcher AI load skipped (model not found or not trained yet): %s", e)
+
 
     # ── 3. Start gRPC server ───────────────────────────────────────────────────
     grpc_task = asyncio.create_task(
@@ -96,6 +113,8 @@ async def lifespan(app: FastAPI):
         # ── Shutdown ──────────────────────────────────────────────────────────
         logger.info("Shutting down GridMind Server…")
         scheduler.shutdown(wait=False)
+        if dispatcher_task:
+            dispatcher_task.cancel()
         grpc_task.cancel()
         try:
             await grpc_task
@@ -127,6 +146,7 @@ app.add_middleware(
 
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(nodes_router)
+app.include_router(tasks_router)
 
 
 # ── Core endpoints ─────────────────────────────────────────────────────────────

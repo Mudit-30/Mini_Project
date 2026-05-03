@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import datetime
 
-from sqlalchemy import Column, DateTime, Float, Integer, String, event, text
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -85,6 +85,50 @@ class TelemetryRecord(Base):
             f"<TelemetryRecord id={self.id} node={self.node_id!r} "
             f"state={self.predicted_state!r} at={self.recorded_at}>"
         )
+
+
+class TaskRecord(Base):
+    """
+    A compute task submitted by the user or an external client.
+    The Dispatcher AI picks tasks from here and assigns them to idle nodes.
+
+    Status lifecycle:  pending → dispatched → completed | failed
+    """
+
+    __tablename__ = "tasks"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    submitted_at   = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc),
+        index=True,
+    )
+    name           = Column(String(256), nullable=False)          # human-readable label
+    command        = Column(Text,        nullable=True)            # shell command to run
+    priority       = Column(Integer,     nullable=False, default=5) # 1 (high) – 10 (low)
+    status         = Column(String(32),  nullable=False, default="pending", index=True)
+    assigned_node  = Column(String(128), nullable=True)            # set when dispatched
+    dispatched_at  = Column(DateTime(timezone=True), nullable=True)
+    completed_at   = Column(DateTime(timezone=True), nullable=True)
+    result_summary = Column(Text,        nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id":             self.id,
+            "name":           self.name,
+            "command":        self.command,
+            "priority":       self.priority,
+            "status":         self.status,
+            "assigned_node":  self.assigned_node,
+            "submitted_at":   self.submitted_at.isoformat() if self.submitted_at else None,
+            "dispatched_at":  self.dispatched_at.isoformat() if self.dispatched_at else None,
+            "completed_at":   self.completed_at.isoformat() if self.completed_at else None,
+            "result_summary": self.result_summary,
+        }
+
+    def __repr__(self) -> str:
+        return f"<TaskRecord id={self.id} name={self.name!r} status={self.status!r}>"
 
 
 # ── Schema helpers ─────────────────────────────────────────────────────────────

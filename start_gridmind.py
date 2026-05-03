@@ -50,8 +50,8 @@ def run():
     local_ip = get_local_ip()
     
     print("\n" + "=" * 70)
-    print("   🌐 GRIDMIND: MULTI-SERVICE ORCHESTRATOR")
-    print(f"   📍 Master Node IP: {local_ip}")
+    print("   [*] GRIDMIND: MULTI-SERVICE ORCHESTRATOR")
+    print(f"   [IP] Master Node IP: {local_ip}")
     print("=" * 70)
 
     # 1. Pre-flight Check
@@ -66,6 +66,7 @@ def run():
         backend_cmd = [
             sys.executable, "-m", "uvicorn", "app.main:app", 
             "--app-dir", str(PROJECT_ROOT / "gridmind_server"), 
+            "--host", "0.0.0.0",
             "--port", "8000"
         ]
         proc_backend = subprocess.Popen(
@@ -81,12 +82,12 @@ def run():
         print("\n[2/3] Launching Frontend Dashboard (Port 3005)...")
         frontend_dir = PROJECT_ROOT / "frontend"
         
-        # Clean environment to prevent Next.js from resolving paths in parent dir
+        # Clean environment to prevent Next.js path resolution bugs
         frontend_env = os.environ.copy()
         for k in ["INIT_CWD", "NODE_ENV", "PYTHONPATH"]:
             frontend_env.pop(k, None)
 
-        frontend_cmd = "npm run dev -- --port 3005"
+        frontend_cmd = "npm run start -- --port 3005"
         proc_frontend = subprocess.Popen(
             frontend_cmd, cwd=str(frontend_dir), shell=True, env=frontend_env,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
@@ -102,12 +103,12 @@ def run():
         )
         processes.append(("Agent", proc_agent))
 
-        print("\n" + "🚀" * 15)
+        print("\n" + ">>" * 15)
         print("   GRIDMIND SYSTEM IS DEPLOYED")
         print(f"   Dashboard:  http://localhost:3005")
         print(f"   Master IP:  http://{local_ip}:3005 (For teammates)")
         print(f"   API Docs:   http://localhost:8000/docs")
-        print("🚀" * 15 + "\n")
+        print(">>" * 15 + "\n")
 
         print("Press Ctrl+C to terminate services.\n")
 
