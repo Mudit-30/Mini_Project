@@ -37,7 +37,8 @@ This is the master controller. It holds the "To-Do List" of heavy computing task
     *   *Why FastAPI?* It is built specifically for speed and "Asynchronous" operations, meaning it can handle hundreds of incoming telemetry streams from worker laptops simultaneously without freezing up.
 *   **The Database:** We use **SQLite** configured in "Write-Ahead Logging" (WAL) mode.
     *   *Why SQLite WAL?* We didn't need a massive, heavy database server. SQLite is just a local file, but WAL mode allows multiple worker laptops to write their telemetry data at the exact same time without locking each other out.
-*   **The Carbon Checker:** Every 60 seconds, the server uses a REST API to call **WattTime**, an external service that tells us exactly how "dirty" (coal/gas) or "clean" (wind/solar) the local electricity grid is right at that second.
+*   **The Carbon Checker:** For the production demo, the server utilizes a **8,929-row historical dataset** of CAISO North grid carbon intensity. It can be toggled between real-time WattTime API calls and this high-fidelity historical playback for consistent validation.
+*   **The Demo Orchestrator:** We built `start_gridmind.py` to synchronize the Backend, Frontend, and Agent in one click, and we implemented a **100x speed playback** mechanism so judges can see a full 24-hour carbon cycle in under 2 minutes.
 
 ---
 
@@ -56,7 +57,7 @@ This is where the real innovation happens. We have two separate AI models doing 
 **The Problem:** If we have tasks, clean energy, and safely idle laptops, who gets the job?
 **The Technical Solution:** We built a **Deep Reinforcement Learning (RL)** model (specifically a Deep Q-Network).
 *   **How it works:** It acts like a video game agent. We trained it entirely in a simulation first using historical data. It gets "points" for completing tasks and gets "penalties" if it uses dirty power or accidentally sends a task to a user who is typing.
-*   **Execution in Production:** Once trained using **PyTorch**, we exported the "brain" to run on **ONNX Runtime**. This is crucial: it allows the server to make the final AI decision in under 10 milliseconds without needing an expensive, power-hungry Graphics Card (GPU).
+*   **Execution in Production:** Once trained using **PyTorch**, the model is loaded into the server using a robust **state_dict** approach. This ensures the Dispatcher AI can make final routing decisions in under 10 milliseconds without needing an expensive, power-hungry Graphics Card (GPU).
 
 ---
 

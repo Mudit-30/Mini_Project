@@ -13,8 +13,9 @@ GridMind harvests wasted computing power from idle laptops on a local network to
 
 **The 3 Core Pillars:**
 1. **Uninterrupted UX:** The AI guarantees 99.8% accuracy in detecting if a laptop is idle. If a user touches their mouse, tasks are aborted instantly.
-2. **Carbon-Aware:** Integrates with WattTime API to defer non-essential computing until the local electricity grid is utilizing renewable energy.
+2. **Carbon-Aware:** Integrates with a 8,929-row historical WattTime CAISO North dataset to defer non-essential computing until the local electricity grid is utilizing renewable energy.
 3. **Low Footprint:** The background trackers use <2% CPU and communicate via ultra-fast gRPC.
+4. **Intelligent Dispatching:** Uses a Deep Q-Network (DQN) Reinforcement Learning agent to balance task throughput with carbon efficiency. 
 
 ---
 

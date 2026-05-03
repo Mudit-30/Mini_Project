@@ -131,30 +131,30 @@ function TaskPanel() {
   };
 
   return (
-    <div className="glass p-5 flex flex-col gap-4">
-      <div className="flex items-center gap-2 text-gray-400">
-        <PlusCircle className="w-4 h-4" />
-        <h2 className="text-[10px] font-bold uppercase tracking-widest">Submit Compute Task</h2>
+    <div className="glass p-6 flex flex-col gap-5">
+      <div className="flex items-center gap-2 text-gray-300">
+        <PlusCircle className="w-5 h-5" />
+        <h2 className="text-xs md:text-sm font-bold uppercase tracking-wider">Submit Compute Task</h2>
       </div>
 
       {/* Form */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <input
           id="task-name"
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-base text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 transition-colors"
           placeholder="Task name (e.g. Train ResNet Epoch 5)"
           value={name}
           onChange={e => setName(e.target.value)}
         />
         <input
           id="task-cmd"
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm font-mono text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 transition-colors"
           placeholder="Command (optional, e.g. python train.py)"
           value={cmd}
           onChange={e => setCmd(e.target.value)}
         />
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-gray-500 uppercase tracking-widest shrink-0">Priority</label>
+        <div className="flex items-center gap-3">
+          <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider shrink-0">Priority</label>
           <input
             id="task-priority"
             type="range" min="1" max="10" step="1"
@@ -162,44 +162,44 @@ function TaskPanel() {
             onChange={e => setPrio(e.target.value)}
             className="flex-1 accent-blue-500"
           />
-          <span className="text-xs font-mono text-gray-400 w-4">{prio}</span>
+          <span className="text-sm font-mono font-bold text-gray-200 w-6 text-right">{prio}</span>
         </div>
         <button
           id="task-submit-btn"
           onClick={submit}
           disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:text-blue-600 rounded-lg py-2 text-sm font-bold transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:text-blue-600 rounded-lg py-3 text-base font-bold transition-colors"
         >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+          {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlusCircle className="w-5 h-5" />}
           {submitting ? "Queueing…" : "Queue Task"}
         </button>
         {flash && (
-          <p className={`text-[11px] font-mono ${flash.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>{flash}</p>
+          <p className={`text-sm font-mono font-semibold ${flash.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>{flash}</p>
         )}
       </div>
 
       {/* Task list */}
-      <div className="border-t border-white/5 pt-3">
-        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Recent Tasks</p>
+      <div className="border-t border-white/10 pt-4">
+        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-3">Recent Tasks</p>
         {tasks.length === 0 ? (
-          <p className="text-gray-600 text-xs text-center py-4">No tasks yet — submit one above.</p>
+          <p className="text-gray-400 text-sm text-center py-5">No tasks yet — submit one above.</p>
         ) : (
-          <div className="space-y-1.5 max-h-52 overflow-y-auto">
+          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1 scrollbar-thin">
             {tasks.map(t => (
-              <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5">
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot[t.status] ?? "bg-gray-500"}`} />
+              <div key={t.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] transition-colors">
+                <div className={`w-2 h-2 rounded-full shrink-0 ${statusDot[t.status] ?? "bg-gray-500"}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold truncate">{t.name}</p>
-                  <p className={`text-[10px] font-mono ${statusColor[t.status] ?? "text-gray-400"}`}>
-                    {t.status}{t.assigned_node ? ` → ${t.assigned_node}` : ""} · P{t.priority}
+                  <p className="text-sm font-bold text-white truncate">{t.name}</p>
+                  <p className={`text-xs font-mono font-medium ${statusColor[t.status] ?? "text-gray-300"} mt-0.5`}>
+                    {t.status.toUpperCase()}{t.assigned_node ? ` → ${t.assigned_node}` : ""} · P{t.priority}
                   </p>
                 </div>
                 {t.status === "pending" && (
-                  <button onClick={() => cancel(t.id)} title="Cancel" className="text-gray-600 hover:text-red-400 transition-colors shrink-0">
-                    <XCircle className="w-3.5 h-3.5" />
+                  <button onClick={() => cancel(t.id)} title="Cancel" className="text-gray-500 hover:text-red-400 transition-colors shrink-0">
+                    <XCircle className="w-5 h-5" />
                   </button>
                 )}
-                {t.status === "completed" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                {t.status === "completed" && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
               </div>
             ))}
           </div>
@@ -212,12 +212,12 @@ function TaskPanel() {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 const StatCard = ({ title, value, icon: Icon, color, pulse }: any) => (
-  <div className="glass p-5 glass-hover transition-all">
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">{title}</span>
-      <Icon className={`w-4 h-4 ${color}`} />
+  <div className="glass p-6 glass-hover transition-all">
+    <div className="flex items-center justify-between mb-4">
+      <span className="text-gray-300 text-xs font-bold uppercase tracking-wider">{title}</span>
+      <Icon className={`w-5 h-5 ${color}`} />
     </div>
-    <div className={`text-2xl font-black ${pulse ? "animate-pulse text-yellow-400" : ""}`}>{value}</div>
+    <div className={`text-3xl font-black ${pulse ? "animate-pulse text-yellow-400" : "text-white"}`}>{value}</div>
   </div>
 );
 
@@ -229,11 +229,11 @@ const CarbonGauge = ({ value }: { value: number }) => {
   const label   = isClean ? "CLEAN ✦" : isMid ? "MIXED" : "DIRTY ⚠";
 
   return (
-    <div className="glass p-5 flex flex-col items-center justify-center gap-2">
-      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-        <Wind className="w-3 h-3" /> Carbon Intensity
+    <div className="glass p-6 flex flex-col items-center justify-center gap-3">
+      <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+        <Wind className="w-4 h-4" /> Grid Carbon
       </span>
-      <div className="relative w-28 h-14 overflow-hidden">
+      <div className="relative w-36 h-18 overflow-hidden">
         {/* semi-circle track */}
         <svg viewBox="0 0 120 60" className="w-full h-full">
           <path d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="#ffffff10" strokeWidth="12" strokeLinecap="round" />
@@ -246,10 +246,10 @@ const CarbonGauge = ({ value }: { value: number }) => {
             strokeDasharray={`${pct * 1.57} 157`}
             style={{ transition: "stroke-dasharray 0.8s ease, stroke 0.8s ease" }}
           />
-          <text x="60" y="58" textAnchor="middle" fill="white" fontSize="14" fontWeight="900">{pct}%</text>
+          <text x="60" y="55" textAnchor="middle" fill="white" fontSize="18" fontWeight="900">{pct}%</text>
         </svg>
       </div>
-      <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
+      <span className="text-sm font-bold mt-1" style={{ color }}>{label}</span>
     </div>
   );
 };
@@ -262,42 +262,42 @@ const NodeCard = ({ node }: { node: Node }) => {
     unknown: "bg-gray-500",
   };
   return (
-    <div className="glass p-5 glass-hover">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
-            <Monitor className="text-blue-400 h-5 w-5" />
+    <div className="glass p-6 glass-hover">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-blue-500/10 rounded-xl">
+            <Monitor className="text-blue-400 h-6 w-6" />
           </div>
           <div>
-            <h3 className="font-bold text-sm">{node.node_id}</h3>
-            <p className="text-[10px] text-gray-500">Live Telemetry</p>
+            <h3 className="font-bold text-base text-white">{node.node_id}</h3>
+            <p className="text-xs text-gray-400">Live Telemetry</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${colors[node.telemetry.state]} animate-pulse`} />
-          <span className="text-[10px] uppercase font-mono tracking-wider text-gray-400">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${colors[node.telemetry.state]} animate-pulse`} />
+          <span className="text-xs uppercase font-mono tracking-wider text-gray-300">
             {node.telemetry.state}
           </span>
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {[
           { label: "CPU", value: node.telemetry.cpu_usage_pct, color: "bg-blue-500" },
           { label: "RAM", value: node.telemetry.ram_usage_pct, color: "bg-purple-500" },
         ].map(({ label, value, color }) => (
           <div key={label}>
-            <div className="flex justify-between text-[10px] mb-1">
+            <div className="flex justify-between text-xs mb-1.5">
               <span className="text-gray-400">{label} Usage</span>
-              <span className="font-mono">{value.toFixed(1)}%</span>
+              <span className="font-mono text-gray-200">{value.toFixed(1)}%</span>
             </div>
-            <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
               <div className={`${color} h-full rounded-full transition-all duration-500`} style={{ width: `${value}%` }} />
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-gray-500 font-mono">
-        <div className="flex items-center gap-1"><Clock className="w-3 h-3" /><span>Last Seen</span></div>
+      <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-gray-400 font-mono">
+        <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /><span>Last Seen</span></div>
         <span>{new Date(node.telemetry.last_seen).toLocaleTimeString()}</span>
       </div>
     </div>
@@ -432,26 +432,26 @@ export default function DashboardPage() {
     <main className="p-8 max-w-7xl mx-auto">
 
       {/* ── Header ── */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-10">
         <div>
-          <div className="flex items-center gap-2 mb-1 text-blue-400">
-            <Zap className="w-4 h-4 fill-current" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Master Node</span>
+          <div className="flex items-center gap-2 mb-2 text-blue-400">
+            <Zap className="w-5 h-5 fill-current" />
+            <span className="text-sm font-bold uppercase tracking-widest">Master Node</span>
           </div>
-          <h1 className="text-5xl font-black tracking-tight">GridMind Central</h1>
-          <p className="text-[10px] text-gray-500 font-mono mt-1">Carbon-Aware Distributed Scheduler — Phase 4 Live Validation</p>
+          <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-white drop-shadow-md">GridMind Central</h1>
+          <p className="text-sm text-gray-400 font-mono mt-3">Carbon-Aware Distributed Scheduler — Phase 4 Live Validation</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="glass px-4 py-2 rounded-xl flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-mono text-gray-400">SERVER ONLINE</span>
-            <div className="w-px h-4 bg-white/10" />
-            <span className="text-[10px] font-mono text-emerald-400 font-bold">{nodes.length}</span>
-            <span className="text-[10px] font-mono text-gray-400">NODES</span>
+          <div className="glass px-5 py-3 rounded-xl flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-mono font-semibold text-gray-300">SERVER ONLINE</span>
+            <div className="w-px h-5 bg-white/20" />
+            <span className="text-sm font-mono text-emerald-400 font-bold">{nodes.length}</span>
+            <span className="text-xs font-mono font-semibold text-gray-300">NODES</span>
           </div>
-          <div className="glass px-4 py-2 rounded-xl flex items-center gap-2">
-            <Zap className="w-3 h-3 text-emerald-400" />
-            <span className="text-[10px] font-mono text-white">AUTOPILOT: ACTIVE</span>
+          <div className="glass px-5 py-3 rounded-xl flex items-center gap-2">
+            <Zap className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-mono font-bold text-white tracking-wide">AUTOPILOT: ACTIVE</span>
           </div>
         </div>
       </header>
@@ -486,9 +486,9 @@ export default function DashboardPage() {
 
         {/* Rolling Carbon Chart */}
         <div className="glass p-6 lg:col-span-3">
-          <div className="flex items-center gap-2 mb-4">
-            <Wind className="w-4 h-4 text-emerald-400" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+          <div className="flex items-center gap-2 mb-5">
+            <Wind className="w-5 h-5 text-emerald-400" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-300">
               Live Grid Carbon Intensity — Rolling {MAX_HISTORY}s Window
             </h2>
           </div>
@@ -531,15 +531,15 @@ export default function DashboardPage() {
 
         {/* Worker Nodes */}
         <div className="xl:col-span-2">
-          <div className="flex items-center gap-2 mb-4 text-gray-400">
-            <LayoutDashboard className="w-4 h-4" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest">Worker Node Cluster</h2>
+          <div className="flex items-center gap-2 mb-5 text-gray-300">
+            <LayoutDashboard className="w-5 h-5" />
+            <h2 className="text-xs font-bold uppercase tracking-wider">Worker Node Cluster</h2>
           </div>
           {nodes.length === 0 ? (
             <div className="glass p-12 text-center">
-              <Monitor className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-              <p className="text-gray-500 text-sm">No nodes connected yet.</p>
-              <p className="text-gray-600 text-xs mt-1">Run <code className="bg-white/5 px-1 rounded">gridmind_node/agent.py</code> on worker laptops.</p>
+              <Monitor className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400 text-base">No nodes connected yet.</p>
+              <p className="text-gray-500 text-sm mt-2">Run <code className="bg-white/10 px-1.5 py-0.5 rounded text-gray-300">gridmind_node/agent.py</code> on worker laptops.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -549,27 +549,27 @@ export default function DashboardPage() {
         </div>
 
         {/* Dispatcher Action Log */}
-        <div className="glass p-5 flex flex-col">
-          <div className="flex items-center gap-2 mb-4 text-gray-400">
-            <ListChecks className="w-4 h-4" />
-            <h2 className="text-[10px] font-bold uppercase tracking-widest">Dispatcher Action Log</h2>
+        <div className="glass p-6 flex flex-col">
+          <div className="flex items-center gap-2 mb-5 text-gray-300">
+            <ListChecks className="w-5 h-5" />
+            <h2 className="text-xs font-bold uppercase tracking-wider">Dispatcher Action Log</h2>
           </div>
           {dispatchLog.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-gray-600 text-xs">
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
               Awaiting first dispatch event…
             </div>
           ) : (
-            <div className="space-y-2 overflow-y-auto max-h-[420px] pr-1 scrollbar-thin">
+            <div className="space-y-2.5 overflow-y-auto max-h-[420px] pr-2 scrollbar-thin">
               {dispatchLog.map(ev => {
                 const isD = ev.strategy.includes("DISPATCH");
                 const isDef = ev.strategy.includes("DEFER");
                 const dot = isD ? "bg-yellow-400" : isDef ? "bg-orange-400" : "bg-gray-500";
                 return (
-                  <div key={ev.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${dot}`} />
+                  <div key={ev.id} className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] transition-colors">
+                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dot}`} />
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold truncate">{ev.strategy}</p>
-                      <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                      <p className="text-sm font-bold text-white truncate">{ev.strategy}</p>
+                      <p className="text-xs text-gray-400 font-mono mt-1 font-medium">
                         {ev.time} · Carbon {Math.round(ev.carbon * 100)}% · Q={ev.queue}
                       </p>
                     </div>
@@ -584,25 +584,25 @@ export default function DashboardPage() {
       {/* ── Task Queue Submission ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <TaskPanel />
-        <div className="glass p-5 flex flex-col justify-center items-center gap-4 text-center">
-          <Zap className="w-10 h-10 text-blue-500/40" />
+        <div className="glass p-6 flex flex-col justify-center items-center gap-4 text-center">
+          <Zap className="w-12 h-12 text-blue-500/50" />
           <div>
-            <p className="text-white font-bold text-sm">How the Task Loop Works</p>
-            <p className="text-gray-500 text-xs mt-2 leading-relaxed max-w-xs">
-              Submit a task above. Every 2 seconds the <span className="text-blue-400">Dispatcher AI</span> checks
+            <p className="text-white font-bold text-lg mb-1">How the Task Loop Works</p>
+            <p className="text-gray-400 text-sm mt-2 leading-relaxed max-w-sm">
+              Submit a task above. Every 2 seconds the <span className="text-blue-400 font-semibold">Dispatcher AI</span> checks
               carbon intensity and node availability. When conditions are green, it picks the
               highest-priority pending task and assigns it to a safe idle node automatically.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-3 w-full mt-2">
+          <div className="grid grid-cols-3 gap-4 w-full mt-4">
             {[
               { label: "Submit", icon: PlusCircle, color: "text-blue-400" },
               { label: "AI Decides", icon: Shield, color: "text-purple-400" },
               { label: "Dispatched", icon: CheckCircle2, color: "text-emerald-400" },
             ].map(({ label, icon: Icon, color }) => (
-              <div key={label} className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex flex-col items-center gap-1">
-                <Icon className={`w-5 h-5 ${color}`} />
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider">{label}</span>
+              <div key={label} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col items-center gap-2 hover:bg-white/[0.05] transition-colors">
+                <Icon className={`w-6 h-6 ${color}`} />
+                <span className="text-xs text-gray-300 font-semibold uppercase tracking-wider">{label}</span>
               </div>
             ))}
           </div>
@@ -611,9 +611,9 @@ export default function DashboardPage() {
 
       {/* ── System Load Trends ── */}
       <section>
-        <div className="flex items-center gap-2 mb-4 text-gray-400">
-          <Activity className="w-4 h-4" />
-          <h2 className="text-[10px] font-bold uppercase tracking-widest">System Load Trends</h2>
+        <div className="flex items-center gap-2 mb-5 text-gray-300">
+          <Activity className="w-5 h-5" />
+          <h2 className="text-xs font-bold uppercase tracking-wider">System Load Trends</h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[
@@ -621,8 +621,8 @@ export default function DashboardPage() {
             { key: "ram_usage_pct",  label: "Aggregate Memory Load (%)",  id: "colorMem", stroke: "#8b5cf6" },
           ].map(({ key, label, id, stroke }) => (
             <div className="glass p-6" key={key}>
-              <h3 className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-5">{label}</h3>
-              <div className="h-[220px]">
+              <h3 className="text-gray-300 text-xs font-bold uppercase tracking-wider mb-5">{label}</h3>
+              <div className="h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={nodes.map(n => ({ name: n.node_id, val: (n.telemetry as any)[key] }))} margin={{ left: -20 }}>
                     <defs>
