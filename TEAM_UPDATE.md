@@ -1,5 +1,5 @@
 # GridMind — Team Update & Working Manual
-**Last Updated:** May 03, 2026 (Final Polish)
+**Last Updated:** May 18, 2026 (Final Polish)
 **Project Status:** 💎 Production Demo Ready — Bulletproof Presentation Mode Active
 
 ---
@@ -174,7 +174,7 @@ python data/generate_dataset.py
 
 ## ⚡ Immediate Next Steps (This Week)
 
-1. **Hardware Deployment** — Run `start_gridmind.py` on the master laptop and `agent.py --server-ip <MASTER_IP>` on each teammate's machine to begin 24-hour live validation.
+1. **Hardware Deployment** — Run `start_gridmind.py` on the master laptop and `agent.py --server <MASTER_IP>:50051` on each teammate's machine to begin 24-hour live validation.
 2. **Validation Metrics** — Monitor the dashboard for 24 hours and record carbon savings %, task completion rate, and inference latency.
 3. **Project Defense** — Use `Project_Review_Prep.md` and `Technical_Implementation_Simple.md` as the Q&A reference.
 
@@ -201,7 +201,7 @@ python start_gridmind.py
 # 5. Connect Teammate Laptops (Worker Nodes)
 # Ask the Master for their current Node IP (shown in start_gridmind.py logs)
 cd gridmind_node
-python agent.py --server-ip <MASTER_IP> --node-id <YOUR_NAME>
+python agent.py --server <MASTER_IP>:50051 --node-id <YOUR_NAME>
 ```
 
 ---
@@ -220,7 +220,7 @@ To join the GridMind cluster, you only need to run the **Node Agent**. Follow th
 3. **Run the Agent**:
    Find the **Master Node IP** (e.g., `10.118.95.208`) from the Master laptop's `start_gridmind.py` output. Then run:
    ```bash
-   python gridmind_node/agent.py --server-ip 10.118.95.208 --node-id teammate_name
+   python gridmind_node/agent.py --server 10.118.95.208:50051 --node-id teammate_name
    ```
 4. **Verify**: Open `http://<MASTER_IP>:3005` in your browser to see your laptop pop up on the dashboard!
 
