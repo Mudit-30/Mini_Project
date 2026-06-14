@@ -6,14 +6,15 @@ class Settings(BaseSettings):
     VERSION:      str = "1.0.0"
     API_V1_STR:   str = "/api/v1"
 
-    # SQLite Database
+    # NOTE: the three values below are currently informational only — the runtime
+    # uses hardcoded constants, not these settings:
+    #   - DB path  → app/db/database.py: DATABASE_PATH
+    #   - gRPC port → app/grpc_server.py: GRPC_LISTEN_ADDR (and the bind pre-check)
+    #   - telemetry interval → gridmind_node/agent.py: COLLECT_INTERVAL
+    # Editing them here has no effect. Kept for documentation/future wiring.
     DATABASE_URL: str = "sqlite+aiosqlite:///./gridmind.db"
-
-    # gRPC
     GRPC_PORT: int = 50051
-
-    # Node agent
-    TELEMETRY_INTERVAL_SECONDS: int = 5   # how often agents sample & send data
+    TELEMETRY_INTERVAL_SECONDS: int = 5
 
     # WattTime API (register free at watttime.org)
     WATTTIME_USERNAME: str = ""

@@ -21,9 +21,7 @@ import logging
 import tempfile
 from pathlib import Path
 
-from sqlalchemy import select
-
-from app.db.database import AsyncSessionLocal, TelemetryRecord
+from app.db.database import AsyncSessionLocal, TelemetryRecord, select
 
 logger = logging.getLogger("gridmind.retrain")
 
@@ -94,6 +92,11 @@ async def retrain_observer(observer) -> None:
     observer :
         The live ``ObserverInference`` singleton stored in ``app.state``.
     """
+    logger.warning(
+        "Auto-retrain uses the Observer's OWN predicted_label as ground truth "
+        "(self-supervised) — it can reinforce existing errors. Treat held-out "
+        "accuracy from this job as a stability signal, not true generalisation."
+    )
     logger.info("Auto-retrain triggered. Fetching %d recent records…", RETRAIN_SAMPLE_SIZE)
 
     try:
@@ -122,7 +125,7 @@ async def retrain_observer(observer) -> None:
         )
 
         # run_training is blocking (CPU-bound) — run it in a thread pool
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         accuracy = await loop.run_in_executor(None, run_training, config)
 
         logger.info("Retrain complete. New accuracy = %.4f", accuracy)

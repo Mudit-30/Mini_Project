@@ -1,6 +1,6 @@
 # GridMind — Team Update & Working Manual
-**Last Updated:** May 18, 2026 (Final Polish)
-**Project Status:** 💎 Production Demo Ready — Bulletproof Presentation Mode Active
+**Last Updated:** June 13, 2026 (Feature-Complete Demo Build)
+**Project Status:** 💎 Production Demo Ready — Real Remote Execution, Carbon Proof & Fault Tolerance Live
 
 ---
 
@@ -10,11 +10,25 @@
 
 > We are turning ordinary student laptops on a shared Wi-Fi network into a free, intelligent mini-supercomputer that **only runs heavy tasks when the power grid is clean and no one is using the machine.**
 
-There are three things that make GridMind different from anything else out there:
+There are four things that make GridMind different from anything else out there:
 1. It works on **consumer laptops** (not data centers)
 2. It uses **AI to detect user presence** — not a simple CPU threshold
-3. It **checks real grid carbon data** (8,929 rows of CAISO history) before dispatching any task
-4. It features a **100x speed Demo Mode** for presentation efficiency.
+3. It optimizes on **marginal grid carbon** (WattTime MOER; 8,929 rows of real CAISO history) before dispatching any task
+4. It **actually runs real workloads** across the cluster — remote execution, fault-tolerant re-dispatch, and data-parallel job splitting (with a configurable carbon-replay fast-forward for demos)
+
+---
+
+## 🚀 Recent Upgrades (Now Done & Tested)
+
+GridMind moved from "decides where a task *would* run" to **actually running real workloads end-to-end**:
+
+- **Remote task execution** — submit a shell command, a `.py` upload, or a ZIP project; the server picks a safe idle node and streams live stdout back. Urgent tasks run immediately; deferrable tasks wait for a clean grid.
+- **Battery & thermal protection** — a node is skipped (marked **"⛔ Protected"**) if it's on battery, below 20% charge, or above 85 °C. Active-user input also vetoes dispatch.
+- **Fault-tolerant re-dispatch** — if a node drops mid-task, the task is re-queued (≤ 3 retries), tried on another node, and only then fails *honestly* with a real status.
+- **Data-parallel job splitting** — split a job into N chunks (`GRIDMIND_CHUNK_INDEX` / `GRIDMIND_CHUNK_COUNT`), fan one chunk out per free node, and report a **measured speedup** when ≥ 2 nodes are available.
+- **Marginal-emissions Carbon Proof** — every completed task reports emissions at submit-time vs. actual run-time (~50 W draw), showing **gCO₂ saved + % reduction** in tangible units.
+- **Honest results** — real exit codes / statuses everywhere; cancelling a task sends `AbortTask` and kills the remote process.
+- **Observer metadata endpoint** — exposes held-out accuracy + confusion matrix for the dashboard.
 
 ---
 
@@ -23,19 +37,20 @@ There are three things that make GridMind different from anything else out there
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  LAYER 1: Node Agents (worker laptops)                      │
-│  Small Python script → collects CPU, RAM, keyboard, mouse  │
-│  Streams data to server via gRPC                            │
+│  psutil + pynput → CPU, RAM, keyboard, mouse, battery, temp │
+│  Streams telemetry out via gRPC; runs tasks locally :50052  │
 └──────────────────────────┬──────────────────────────────────┘
-                           │ gRPC telemetry stream
+                           │ gRPC telemetry stream → master :50051
 ┌──────────────────────────▼──────────────────────────────────┐
 │  LAYER 2: Central Intelligence Server (master laptop)       │
-│  FastAPI + SQLite — holds task queue                        │
-│  Calls WattTime API every minute for carbon data            │
+│  FastAPI :8000 + async gRPC — in-memory registry + queue    │
+│  Dispatcher loop every 2s; SQLite (WAL) via aiosqlite       │
+│  Replays real CAISO marginal-emissions (WattTime CO2_MOER)  │
 └──────────────────────────┬──────────────────────────────────┘
                            │ ML decisions
 ┌──────────────────────────▼──────────────────────────────────┐
 │  LAYER 3: ML Decision Layer                                 │
-│  Observer AI  → DBSCAN + K-Means: "Is this laptop safe?"   │
+│  Observer AI  → RandomForest: "Is this laptop safe?"       │
 │  Dispatcher AI → DQN (Deep Q-Network): "Which one gets it?"│
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -51,14 +66,16 @@ Mini_Project/
 │   └── telemetry_dataset.csv    ← 10,000-row training dataset (see below)
 │
 ├── gridmind_node/
-│   └── agent.py                 ← Node agent (runs on worker laptops)
+│   ├── agent.py                 ← Node agent (telemetry + gRPC, runs on workers)
+│   └── executor.py              ← Runs uploaded scripts/.py/ZIP locally (:50052)
 │
 ├── gridmind_server/
 │   ├── app/
-│   │   ├── main.py              ← FastAPI entry point
-│   │   ├── core/                ← Business logic
-│   │   └── db/                  ← Database models & sessions
-│   └── alembic/                 ← Database migrations
+│   │   ├── main.py              ← FastAPI entry point (:8000)
+│   │   ├── core/                ← Business logic & config
+│   │   ├── carbon/              ← CAISO marginal-emissions replay
+│   │   └── db/                  ← Hand-rolled async aiosqlite layer (raw SQL)
+│   └── alembic/                 ← (scaffolded, currently unused)
 │
 ├── GridMind_Team_Onboarding.md  ← Original architecture doc
 ├── TEAM_UPDATE.md               ← This file — current working status
@@ -69,7 +86,7 @@ Mini_Project/
 
 ## 📊 The Dataset — `data/telemetry_dataset.csv`
 
-This is the most important update. We now have a training dataset ready for the Observer AI.
+This is the labeled dataset used to train the (supervised) Observer AI via an 80/20 train/test split.
 
 ### Why we made our own dataset
 There is no public dataset of laptop telemetry with carbon-grid data that matches our exact setup. So we generated one synthetically using **realistic statistical distributions** (the same way research teams in production do when hardware isn't deployed yet). Once our node agents are running on real laptops, we will **replace/augment** this data with real telemetry.
@@ -112,7 +129,7 @@ There is no public dataset of laptop telemetry with carbon-grid data that matche
 | Keyboard events/min | ~1 | ~120 | ~1 |
 | Mouse events/min | ~2 | ~150 | ~1 |
 
-The key insight: **busy_hardware looks like idle on keyboard/mouse but has high CPU/RAM** — this is exactly why a simple "CPU < 25%" threshold fails, and why we need unsupervised clustering.
+The key insight: **busy_hardware looks like idle on keyboard/mouse but has high CPU/RAM** — this is exactly why a simple "CPU < 25%" threshold fails, and why we train a multi-feature classifier (RandomForest) instead.
 
 ### How to Regenerate the Dataset
 ```bash
@@ -127,22 +144,30 @@ python data/generate_dataset.py
 | Phase | Task | Status |
 |---|---|---|
 | 1 | Central FastAPI server skeleton | ✅ Done |
-| 1 | SQLite DB + Alembic migrations setup | ✅ Done |
+| 1 | SQLite (WAL) DB via hand-rolled aiosqlite layer | ✅ Done |
 | 1 | Node agent telemetry collection (`agent.py`) | ✅ Done (with pynput) |
 | 1 | Observer AI training dataset | ✅ Done (10k rows) |
 | 2 | gRPC communication between nodes and server | ✅ Done |
-| 2 | DBSCAN + K-Means Observer AI training | ✅ Done (accuracy: 99.8%) |
-| 2 | Auto-retrain pipeline (every 4 hours) | ✅ Done |
+| 2 | RandomForest Observer AI training (supervised, 80/20 split) | ✅ Done (99.2% held-out) |
+| 2 | Temporal smoothing over Observer predictions (configurable window, default 6) | ✅ Done |
+| 2 | Self-supervised retrain pipeline | ✅ Done (OFF by default; opt-in via `GRIDMIND_ENABLE_RETRAIN=1`) |
 | 3 | DQN Dispatcher simulation environment | ✅ Done |
-| 3 | DQN training with carbon penalty rewards | ✅ Done (PyTorch) |
-| 3 | PyTorch `.pt` export for <10ms inference | ✅ Done |
+| 3 | DQN training with carbon penalty rewards | ✅ Done (Dueling Double DQN, PyTorch) |
+| 3 | PyTorch `.pt` state_dict on CPU for <10ms inference | ✅ Done |
 | 4 | Next.js dashboard + WebSocket live charts | ✅ Done (Port 3005) |
 | 4 | Live Carbon Intensity chart (rolling window) | ✅ Done |
 | 4 | Dispatcher Action Log (live event feed) | ✅ Done |
 | 4 | Task Queue API (`POST /api/v1/tasks`) | ✅ Done |
 | 4 | Task Submit UI on dashboard | ✅ Done |
 | 4 | Dispatcher reads real DB queue | ✅ Done |
-| 4 | 3-laptop real deployment & 24hr test | 🟡 In Progress |
+| 5 | Remote task execution (shell / `.py` upload / ZIP → idle node → live stdout) | ✅ Done |
+| 5 | Active-user veto + battery & thermal protection ("⛔ Protected") | ✅ Done |
+| 5 | Fault-tolerant re-dispatch (node drop → re-queue ≤3 retries → honest fail) | ✅ Done |
+| 5 | Data-parallel job splitting (N chunks, one-per-free-node, measured speedup) | ✅ Done |
+| 5 | Marginal-emissions Carbon Proof (submit vs run-time gCO₂ saved + %) | ✅ Done |
+| 5 | Honest results + cancel→AbortTask kills remote process | ✅ Done |
+| 5 | Observer metadata endpoint (held-out accuracy + confusion matrix) | ✅ Done |
+| 5 | 3-laptop real deployment & 24hr test | 🟡 In Progress |
 
 ---
 
@@ -162,13 +187,13 @@ python data/generate_dataset.py
 
 | Layer | Technology |
 |---|---|
-| Backend Server | Python 3.12, FastAPI, SQLAlchemy |
-| Database | SQLite (WAL mode) |
+| Backend Server | Python 3.12, FastAPI |
+| Database | SQLite (WAL mode) via hand-rolled aiosqlite layer (raw SQL, not SQLAlchemy) |
 | Node ↔ Server comms | gRPC (telemetry), REST (task submit), WebSocket (dashboard) |
-| Observer AI | scikit-learn (DBSCAN, K-Means) |
-| Dispatcher AI | PyTorch (training) → ONNX Runtime (production inference) |
-| Carbon Data API | WattTime (free academic tier) |
-| Frontend Dashboard | Next.js |
+| Observer AI | scikit-learn `RandomForestClassifier` — **supervised**, 80/20 train/test split, **99.2% held-out** + temporal smoothing (configurable window, default 6) |
+| Dispatcher AI | PyTorch **Dueling Double DQN**, native `.pt` **state_dict loaded on CPU** for <10 ms inference (no ONNX) |
+| Carbon Data | **Marginal emissions** — WattTime `CO2_MOER`; **8,929 real CAISO rows** replayed (configurable stride); ARIMA fit at startup |
+| Frontend Dashboard | Next.js (Port 3005, WebSocket) |
 
 ---
 
@@ -204,13 +229,17 @@ cd gridmind_node
 python agent.py --server <MASTER_IP>:50051 --node-id <YOUR_NAME>
 ```
 
+> **Network / firewall:** The **master** must allow **inbound :50051** (telemetry gRPC).
+> Each **worker** must allow **inbound :50052** (so the master can dispatch tasks to it).
+> Keep workers **plugged in** — a node on battery is auto-skipped by thermal/battery protection.
+
 ---
 
 ## 🛠️ How to Connect Your Laptop (Teammates)
 
 To join the GridMind cluster, you only need to run the **Node Agent**. Follow these steps:
 
-1. **Prerequisites**: Ensure you have Python 3.10+ installed and you are on the **same Wi-Fi network** as the Master laptop.
+1. **Prerequisites**: Ensure you have Python 3.10+ installed, you are on the **same Wi-Fi network** as the Master laptop, your laptop is **plugged in**, and your firewall allows **inbound :50052** (the master dispatches tasks to your machine on this port).
 2. **Setup**:
    ```bash
    git clone <repo-url>
@@ -222,7 +251,9 @@ To join the GridMind cluster, you only need to run the **Node Agent**. Follow th
    ```bash
    python gridmind_node/agent.py --server 10.118.95.208:50051 --node-id teammate_name
    ```
-4. **Verify**: Open `http://<MASTER_IP>:3005` in your browser to see your laptop pop up on the dashboard!
+4. **Verify**: Open `http://<MASTER_IP>:3005` in your browser to see your laptop pop up on the dashboard! Once idle and on a clean grid, the master can dispatch real tasks to you and stream their output back.
+
+> **Stay plugged in:** a node running on battery (or below 20% charge, or above 85 °C) is automatically skipped and shown as **"⛔ Protected"** — it won't receive tasks.
 
 ---
 

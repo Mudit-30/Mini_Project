@@ -9,7 +9,7 @@ import sys
 import os
 from pathlib import Path
 
-# Fix Windows console encoding for emojis
+
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding='utf-8')

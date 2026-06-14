@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0ftelemetry.proto\x12\ttelemetry\"\xb4\x01\n\rTelemetryData\x12\x0f\n\x07node_id\x18\x01 \x01(\t\x12\x15\n\rcpu_usage_pct\x18\x02 \x01(\x02\x12\x15\n\rram_usage_pct\x18\x03 \x01(\x02\x12\x19\n\x11kb_events_per_min\x18\x04 \x01(\x05\x12\x1c\n\x14mouse_events_per_min\x18\x05 \x01(\x05\x12\x14\n\x0cnet_io_bytes\x18\x06 \x01(\x03\x12\x15\n\rprocess_count\x18\x07 \x01(\x05\"5\n\x11TelemetryResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2a\n\x10TelemetryService\x12M\n\x0fStreamTelemetry\x12\x18.telemetry.TelemetryData\x1a\x1c.telemetry.TelemetryResponse\"\x00(\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0ftelemetry.proto\x12\ttelemetry\"\xb1\x02\n\rTelemetryData\x12\x0f\n\x07node_id\x18\x01 \x01(\t\x12\x15\n\rcpu_usage_pct\x18\x02 \x01(\x02\x12\x15\n\rram_usage_pct\x18\x03 \x01(\x02\x12\x19\n\x11kb_events_per_min\x18\x04 \x01(\x05\x12\x1c\n\x14mouse_events_per_min\x18\x05 \x01(\x05\x12\x14\n\x0cnet_io_bytes\x18\x06 \x01(\x03\x12\x15\n\rprocess_count\x18\x07 \x01(\x05\x12\x11\n\tcpu_cores\x18\x08 \x01(\x05\x12\x13\n\x0bgpu_vram_gb\x18\t \x01(\x02\x12\x12\n\nhas_docker\x18\n \x01(\x08\x12\x17\n\x0f\x62\x61ttery_percent\x18\x0b \x01(\x02\x12\x12\n\non_battery\x18\x0c \x01(\x08\x12\x12\n\ncpu_temp_c\x18\r \x01(\x02\"5\n\x11TelemetryResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x93\x01\n\x0bTaskPayload\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x0e\n\x06script\x18\x02 \x01(\t\x12\x11\n\ttimeout_s\x18\x03 \x01(\x05\x12\x10\n\x08priority\x18\x04 \x01(\t\x12\x14\n\x0chas_artifact\x18\x05 \x01(\x08\x12\x13\n\x0b\x63hunk_index\x18\x06 \x01(\x05\x12\x13\n\x0b\x63hunk_count\x18\x07 \x01(\x05\"w\n\nTaskResult\x12\x0f\n\x07task_id\x18\x01 \x01(\t\x12\x0e\n\x06stdout\x18\x02 \x01(\t\x12\x0e\n\x06stderr\x18\x03 \x01(\t\x12\x11\n\texit_code\x18\x04 \x01(\x05\x12\x15\n\rduration_secs\x18\x05 \x01(\x02\x12\x0e\n\x06status\x18\x06 \x01(\t\"\x1f\n\x0c\x41\x62ortRequest\x12\x0f\n\x07task_id\x18\x01 \x01(\t\"\x1b\n\x08\x41\x62ortAck\x12\x0f\n\x07success\x18\x01 \x01(\x08\x32\xdc\x01\n\x10TelemetryService\x12M\n\x0fStreamTelemetry\x12\x18.telemetry.TelemetryData\x1a\x1c.telemetry.TelemetryResponse\"\x00(\x01\x12<\n\x07RunTask\x12\x16.telemetry.TaskPayload\x1a\x15.telemetry.TaskResult\"\x00\x30\x01\x12;\n\tAbortTask\x12\x17.telemetry.AbortRequest\x1a\x13.telemetry.AbortAck\"\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,9 +32,17 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'telemetry_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_TELEMETRYDATA']._serialized_start=31
-  _globals['_TELEMETRYDATA']._serialized_end=211
-  _globals['_TELEMETRYRESPONSE']._serialized_start=213
-  _globals['_TELEMETRYRESPONSE']._serialized_end=266
-  _globals['_TELEMETRYSERVICE']._serialized_start=268
-  _globals['_TELEMETRYSERVICE']._serialized_end=365
+  _globals['_TELEMETRYDATA']._serialized_end=336
+  _globals['_TELEMETRYRESPONSE']._serialized_start=338
+  _globals['_TELEMETRYRESPONSE']._serialized_end=391
+  _globals['_TASKPAYLOAD']._serialized_start=394
+  _globals['_TASKPAYLOAD']._serialized_end=541
+  _globals['_TASKRESULT']._serialized_start=543
+  _globals['_TASKRESULT']._serialized_end=662
+  _globals['_ABORTREQUEST']._serialized_start=664
+  _globals['_ABORTREQUEST']._serialized_end=695
+  _globals['_ABORTACK']._serialized_start=697
+  _globals['_ABORTACK']._serialized_end=724
+  _globals['_TELEMETRYSERVICE']._serialized_start=727
+  _globals['_TELEMETRYSERVICE']._serialized_end=947
 # @@protoc_insertion_point(module_scope)

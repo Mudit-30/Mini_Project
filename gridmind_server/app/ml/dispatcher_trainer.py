@@ -7,23 +7,30 @@ import torch.nn as nn
 import torch.optim as optim
 
 try:
-    from gridmind_server.app.ml.dispatcher_env import GridMindEnv
+    from app.ml.dispatcher_env import GridMindEnv
 except ModuleNotFoundError:
-    from dispatcher_env import GridMindEnv
+    try:
+        from gridmind_server.app.ml.dispatcher_env import GridMindEnv
+    except ModuleNotFoundError:
+        from dispatcher_env import GridMindEnv  # last resort: run from ml/ dir
 
-class DQN(nn.Module):
+class DuelingDQN(nn.Module):
     def __init__(self, state_dim, action_dim):
-        super(DQN, self).__init__()
+        super(DuelingDQN, self).__init__()
         self.fc1 = nn.Linear(state_dim, 64)
         self.relu1 = nn.ReLU()
-        self.fc2 = nn.Linear(64, 32)
+        self.fc2 = nn.Linear(64, 64)
         self.relu2 = nn.ReLU()
-        self.fc3 = nn.Linear(32, action_dim)
+        
+        self.value_stream = nn.Linear(64, 1)
+        self.advantage_stream = nn.Linear(64, action_dim)
         
     def forward(self, x):
         x = self.relu1(self.fc1(x))
         x = self.relu2(self.fc2(x))
-        return self.fc3(x)
+        value = self.value_stream(x)
+        advantage = self.advantage_stream(x)
+        return value + (advantage - advantage.mean(dim=1, keepdim=True))
 
 class DQNAgent:
     def __init__(self, state_dim, action_dim):
@@ -39,9 +46,15 @@ class DQNAgent:
         self.lr = 0.001
         
         self.memory = deque(maxlen=10000)
-        self.model = DQN(state_dim, action_dim)
+        self.model = DuelingDQN(state_dim, action_dim)
+        self.target_model = DuelingDQN(state_dim, action_dim)
+        self.update_target_network()
+        
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+        
+    def update_target_network(self):
+        self.target_model.load_state_dict(self.model.state_dict())
         
     def act(self, state):
         if np.random.rand() <= self.epsilon:
@@ -68,9 +81,10 @@ class DQNAgent:
         # Current Q
         curr_Q = self.model(states).gather(1, actions.unsqueeze(1)).squeeze(1)
         
-        # Target Q
+        # Target Q (Double DQN)
         with torch.no_grad():
-            max_next_Q = self.model(next_states).max(1)[0]
+            best_actions = self.model(next_states).max(1)[1].unsqueeze(1)
+            max_next_Q = self.target_model(next_states).gather(1, best_actions).squeeze(1)
             target_Q = rewards + (1 - dones) * self.gamma * max_next_Q
             
         loss = self.criterion(curr_Q, target_Q)
@@ -105,6 +119,9 @@ def train_and_export(carbon_csv_path):
             total_reward += reward
             agent.replay()
             
+        if e % 10 == 0:
+            agent.update_target_network()
+            
         if e % 50 == 0:
             print(f"Episode {e}/{episodes} - Total Reward: {total_reward:.2f} - Epsilon: {agent.epsilon:.2f}")
     
@@ -125,9 +142,23 @@ def train_and_export(carbon_csv_path):
 
 if __name__ == "__main__":
     import sys
-    # Expect csv path passed as arg, or default
-    csv_path = "watttime_carbon_data_CAISO_NORTH.csv"
-    if len(sys.argv) > 1:
-        csv_path = sys.argv[1]
-    
-    train_and_export(csv_path)
+    csv_path = sys.argv[1] if len(sys.argv) > 1 else None
+
+    # Search for the CSV in likely locations relative to the project root
+    if csv_path is None:
+        _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+        for candidate in [
+            os.path.join(_root, "watttime_carbon_data_CAISO_NORTH.csv"),
+            os.path.join(_root, "gridmind_server", "watttime_carbon_data_CAISO_NORTH.csv"),
+            "watttime_carbon_data_CAISO_NORTH.csv",
+        ]:
+            if os.path.exists(candidate):
+                csv_path = candidate
+                break
+
+    if csv_path and not os.path.exists(csv_path):
+        print(f"Warning: CSV not found at {csv_path!r}. Using synthetic sine wave.")
+        csv_path = None
+
+    train_and_export(csv_path or "watttime_carbon_data_CAISO_NORTH.csv")
+

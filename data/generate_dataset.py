@@ -35,10 +35,16 @@ if sys.platform == "win32":
 RNG = np.random.default_rng(seed=42)
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-N_IDLE         = 4000   # rows for idle state
-N_ACTIVE_USER  = 4000   # rows for active_user state
-N_BUSY_HW      = 2000   # rows for busy_hardware state  (less common)
-TOTAL          = N_IDLE + N_ACTIVE_USER + N_BUSY_HW
+# Each class is split into "clear" examples + realistic "boundary" examples that
+# overlap a neighbouring class. Real telemetry is fuzzy at the edges; modelling
+# that is what makes the held-out accuracy honest (and < 100%).
+N_IDLE_CLEAR        = 3400   # obviously-idle rows
+N_IDLE_BACKGROUND   = 600    # idle but a background job bumps CPU (looks busy_hardware)
+N_ACTIVE_CLEAR      = 3200   # obviously-active (typing/clicking) rows
+N_ACTIVE_PASSIVE    = 800    # present but reading/watching: low input (looks idle)
+N_BUSY_HW           = 2000   # background job maxing hardware, no user
+TOTAL = (N_IDLE_CLEAR + N_IDLE_BACKGROUND + N_ACTIVE_CLEAR
+         + N_ACTIVE_PASSIVE + N_BUSY_HW)
 
 
 def clip(arr, lo, hi):
@@ -69,6 +75,39 @@ def gen_active_user(n):
     mouse = clip(RNG.normal(loc=150, scale=50, size=n), 20, 500)
     net   = clip(RNG.exponential(scale=500_000, size=n), 5_000, 5_000_000)
     procs = clip(RNG.normal(loc=120, scale=20, size=n), 70, 200).astype(int)
+    carbon = clip(RNG.normal(loc=250, scale=80, size=n), 50, 600)
+    label  = np.ones(n, dtype=int)
+    return cpu, ram, kb, mouse, net, procs, carbon, label
+
+
+# ─── Boundary: IDLE but background job running ────────────────────────────────
+# No user (kb/mouse ~0) but a background process (updater, indexer, sync) bumps
+# CPU/RAM. Ground truth is IDLE (safe to dispatch) — but it can look like
+# busy_hardware. This is a low-cost error if the model gets it wrong.
+def gen_idle_background(n):
+    cpu   = clip(RNG.normal(loc=42, scale=14,  size=n), 20, 70)
+    ram   = clip(RNG.normal(loc=50, scale=12,  size=n), 30, 80)
+    kb    = clip(RNG.poisson(lam=1, size=n),            0,  8)
+    mouse = clip(RNG.poisson(lam=2, size=n),            0,  12)
+    net   = clip(RNG.exponential(scale=80_000, size=n), 0,  1_500_000)
+    procs = clip(RNG.normal(loc=95, scale=18,  size=n), 50, 160).astype(int)
+    carbon = clip(RNG.normal(loc=250, scale=80, size=n), 50, 600)
+    label  = np.zeros(n, dtype=int)
+    return cpu, ram, kb, mouse, net, procs, carbon, label
+
+
+# ─── Boundary: ACTIVE USER but passive (reading / watching) ───────────────────
+# A human IS present but barely touching input — reading a long doc, watching a
+# video. Low kb/mouse makes it look idle. Ground truth is ACTIVE_USER: getting
+# this wrong means INTERRUPTING a real person — the costly error the Observer
+# exists to avoid. We want the confusion matrix to expose exactly this.
+def gen_active_user_passive(n):
+    cpu   = clip(RNG.normal(loc=22, scale=12,  size=n), 5,  60)
+    ram   = clip(RNG.normal(loc=50, scale=12,  size=n), 25, 85)
+    kb    = clip(RNG.poisson(lam=6, size=n),            0,  35)
+    mouse = clip(RNG.normal(loc=18, scale=12,  size=n), 0,  60).astype(int)
+    net   = clip(RNG.exponential(scale=300_000, size=n), 2_000, 4_000_000)
+    procs = clip(RNG.normal(loc=115, scale=20, size=n), 70, 200).astype(int)
     carbon = clip(RNG.normal(loc=250, scale=80, size=n), 50, 600)
     label  = np.ones(n, dtype=int)
     return cpu, ram, kb, mouse, net, procs, carbon, label
@@ -118,11 +157,13 @@ def assemble(*state_tuples):
 if __name__ == "__main__":
     print("Generating GridMind telemetry dataset...")
 
-    idle_data   = gen_idle(N_IDLE)
-    active_data = gen_active_user(N_ACTIVE_USER)
-    busy_data   = gen_busy_hardware(N_BUSY_HW)
+    idle_data        = gen_idle(N_IDLE_CLEAR)
+    idle_background  = gen_idle_background(N_IDLE_BACKGROUND)
+    active_data      = gen_active_user(N_ACTIVE_CLEAR)
+    active_passive   = gen_active_user_passive(N_ACTIVE_PASSIVE)
+    busy_data        = gen_busy_hardware(N_BUSY_HW)
 
-    df = assemble(idle_data, active_data, busy_data)
+    df = assemble(idle_data, idle_background, active_data, active_passive, busy_data)
 
     # Save
     out_path = os.path.join(os.path.dirname(__file__), "telemetry_dataset.csv")

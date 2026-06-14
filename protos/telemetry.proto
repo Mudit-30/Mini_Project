@@ -4,6 +4,8 @@ package telemetry;
 
 service TelemetryService {
   rpc StreamTelemetry (stream TelemetryData) returns (TelemetryResponse) {}
+  rpc RunTask(TaskPayload) returns (stream TaskResult) {}
+  rpc AbortTask(AbortRequest) returns (AbortAck) {}
 }
 
 message TelemetryData {
@@ -14,9 +16,37 @@ message TelemetryData {
   int32 mouse_events_per_min = 5;
   int64 net_io_bytes = 6;
   int32 process_count = 7;
+  int32 cpu_cores = 8;
+  float gpu_vram_gb = 9;
+  bool has_docker = 10;
+  float battery_percent = 11;   // 0-100; 100 if no battery (desktop)
+  bool on_battery = 12;         // true if running on battery (unplugged)
+  float cpu_temp_c = 13;        // CPU temp in °C; 0 if unavailable (e.g. Windows)
 }
 
 message TelemetryResponse {
   bool success = 1;
   string message = 2;
 }
+
+message TaskPayload {
+  string task_id   = 1;
+  string script    = 2;   // raw Python source as a string
+  int32  timeout_s = 3;   // force-kill after N seconds (default 300)
+  string priority  = 4;   // "urgent" | "deferrable" | "best_effort"
+  bool has_artifact = 5;  // if true, download from /api/v1/tasks/{task_id}/artifact
+  int32 chunk_index = 6;  // data-parallel: this chunk's index (0..chunk_count-1)
+  int32 chunk_count = 7;  // data-parallel: total number of chunks (1 = not parallel)
+}
+
+message TaskResult {
+  string task_id       = 1;
+  string stdout        = 2;
+  string stderr        = 3;
+  int32  exit_code     = 4;   // -1 = still running
+  float  duration_secs = 5;
+  string status        = 6;   // "running"|"completed"|"failed"|"aborted"
+}
+
+message AbortRequest { string task_id = 1; }
+message AbortAck     { bool success   = 1; }

@@ -1,40 +1,247 @@
 @import "tailwindcss";
 
-:root {
-  --background: #050505;
-  --foreground: #ffffff;
-  --primary: #3b82f6;
-  --secondary: #10b981;
-  --accent: #8b5cf6;
-  --card: rgba(255, 255, 255, 0.03);
-  --card-border: rgba(255, 255, 255, 0.1);
+/* Animatable carbon-reactive glow — lets the whole UI smoothly "breathe" with
+   the live grid intensity (green when clean → amber → red when dirty). */
+@property --carbon-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f7b733;
 }
 
-@theme inline {
+:root {
+  /* Base — warm near-black */
+  --background: #0a0b0f;
+  --surface-1: #101218;
+  --surface-2: #171b24;
+  --foreground: #e9edf4;
+  --muted: #99a2b2;
+  --faint: #5b6475;
+
+  /* Signature accent — electric lime + emerald support */
+  --accent: #b6ff2e;
+  --accent-2: #34d399;
+
+  /* Semantic carbon ramp */
+  --carbon-clean: #2ee07a;
+  --carbon-mixed: #f7b733;
+  --carbon-dirty: #ff5a5f;
+
+  /* Live carbon glow — set inline by the dashboard from real grid intensity */
+  --carbon-glow: #f7b733;
+
+  --card-border: rgba(255, 255, 255, 0.12);
+  --radius: 1.25rem;
+}
+
+@theme {
   --color-background: var(--background);
+  --color-surface: var(--surface-1);
   --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
-  --color-card: var(--card);
-  --color-card-border: var(--card-border);
+  --color-accent-2: var(--accent-2);
+  --color-carbon-clean: var(--carbon-clean);
+  --color-carbon-mixed: var(--carbon-mixed);
+  --color-carbon-dirty: var(--carbon-dirty);
+
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 body {
-  background: radial-gradient(circle at top center, #111 0%, #050505 100%);
+  background: var(--background);
   color: var(--foreground);
   min-height: 100vh;
+  font-feature-settings: "ss01";
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Fine film grain over everything for richness/depth */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Carbon-reactive aurora glow — sits behind all content, breathes with the grid */
+.aurora {
+  position: fixed;
+  inset: -25%;
+  z-index: 0;
+  pointer-events: none;
+  transition: --carbon-glow 1.6s ease;
+  background:
+    radial-gradient(42% 36% at 12% 2%,  color-mix(in srgb, var(--carbon-glow) 45%, transparent), transparent 70%),
+    radial-gradient(40% 38% at 92% 8%,  color-mix(in srgb, var(--carbon-glow) 30%, transparent), transparent 70%),
+    radial-gradient(64% 52% at 50% 114%, color-mix(in srgb, var(--carbon-glow) 20%, transparent), transparent 72%);
+  filter: blur(14px) saturate(1.12);
+}
+
+/* Carbon-reactive GRID MESH — literal power-grid lines that recolour green→amber→red
+   with the live grid intensity. Faded toward the edges via a radial mask. */
+.grid-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: --carbon-glow 1.6s ease;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--carbon-glow) 13%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--carbon-glow) 13%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(135% 105% at 50% -8%, #000 35%, transparent 86%);
+  mask-image: radial-gradient(135% 105% at 50% -8%, #000 35%, transparent 86%);
+}
+
+/* ── Surfaces ───────────────────────────────────────────────────────────── */
+.card,
 .glass {
-  background: var(--card);
-  backdrop-filter: blur(12px);
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(22, 26, 36, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--card-border);
-  border-radius: 1rem;
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 18px 42px -22px rgba(0, 0, 0, 0.85);
 }
 
+.card-hover,
+.glass-hover {
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.35s, box-shadow 0.35s;
+}
+.card-hover:hover,
 .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--card-border));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    0 26px 60px -28px rgba(0, 0, 0, 0.9),
+    0 0 34px -10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Hero surface — glows with the live carbon colour */
+.card-hero {
+  transition: border-color 1.6s ease, box-shadow 1.6s ease, --carbon-glow 1.6s ease;
+  border-color: color-mix(in srgb, var(--carbon-glow) 28%, var(--card-border));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 30px 70px -30px rgba(0, 0, 0, 0.9),
+    0 0 64px -22px color-mix(in srgb, var(--carbon-glow) 42%, transparent);
+}
+
+/* ── Typography helpers ─────────────────────────────────────────────────── */
+.font-display { font-family: var(--font-display); }
+.stat-num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+.section-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* ── Bits ───────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--card-border);
+}
+.glow-accent { box-shadow: 0 0 26px -6px color-mix(in srgb, var(--accent) 55%, transparent); }
+.text-glow-carbon {
+  color: var(--carbon-glow);
+  transition: --carbon-glow 1.6s ease;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--carbon-glow) 50%, transparent);
+}
+.divider { height: 1px; background: linear-gradient(90deg, transparent, var(--card-border), transparent); }
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* ── Craft layer — the details that read as "hand-built" ────────────────── */
+html { scroll-behavior: smooth; }
+body { text-rendering: optimizeLegibility; }
+
+/* Branded text selection */
+::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: #fff; }
+
+/* Global scrollbar (consistent with the app, not the OS default) */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); background-clip: padding-box; }
+
+/* Keyboard focus — accent ring (only for keyboard nav, never on mouse click) */
+:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; border-radius: 8px; }
+*:focus:not(:focus-visible) { outline: none; }
+
+/* Balanced multi-line headings + tighter optical tracking on the wordmark */
+h1, h2, h3 { text-wrap: balance; }
+
+/* Hairline carbon-reactive status bar pinned to the very top of the viewport */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0.85;
+  transition: --carbon-glow 1.6s ease;
+  background: linear-gradient(90deg, transparent, var(--carbon-glow), transparent);
+}
+
+/* Interactive cards get a faint accent top-edge on hover */
+.card-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), transparent);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.card-hover:hover::before { opacity: 1; }
+
+/* "Live" breathing dot */
+@keyframes livepulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-2) 55%, transparent); }
+  60% { box-shadow: 0 0 0 5px transparent; }
+}
+.live-dot { animation: livepulse 2.4s ease-in-out infinite; }
+
+/* Respect users who prefer reduced motion (accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

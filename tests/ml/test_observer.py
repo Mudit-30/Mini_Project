@@ -35,8 +35,6 @@ def trained_model_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     config = TrainerConfig(
         dataset_path=PROJECT_ROOT / "data" / "telemetry_dataset.csv",
         output_dir=out_dir,
-        # Use a smaller n_init to keep CI fast while still being deterministic
-        kmeans_n_init=5,
     )
     run_training(config)
     return out_dir
@@ -53,9 +51,9 @@ class TestTrainingProducesArtifacts:
             "scaler.joblib was not created by the trainer."
         )
 
-    def test_kmeans_file_exists(self, trained_model_dir: Path) -> None:
-        assert (trained_model_dir / "kmeans.joblib").exists(), (
-            "kmeans.joblib was not created by the trainer."
+    def test_rf_model_file_exists(self, trained_model_dir: Path) -> None:
+        assert (trained_model_dir / "rf_model.joblib").exists(), (
+            "rf_model.joblib was not created by the trainer."
         )
 
     def test_metadata_file_exists(self, trained_model_dir: Path) -> None:
@@ -75,7 +73,7 @@ class TestMetadataSchema:
     def test_required_keys_present(self, metadata: dict) -> None:
         required = {
             "model_name", "version", "trained_at",
-            "accuracy", "noise_ratio",
+            "accuracy",
             "feature_columns", "label_map", "hyperparameters",
         }
         assert required.issubset(metadata.keys()), (
@@ -150,24 +148,24 @@ class TestObserverInference:
     # ── output contract ───────────────────────────────────────────────────────
 
     def test_predict_returns_required_keys(self, observer) -> None:
-        result = observer.predict(self._idle_snapshot())
+        result = observer.predict(self._idle_snapshot(), node_id="test-node")
         assert set(result.keys()) == {"label", "state", "confidence"}
 
     def test_confidence_in_valid_range(self, observer) -> None:
-        result = observer.predict(self._idle_snapshot())
+        result = observer.predict(self._idle_snapshot(), node_id="test-node")
         assert 0.0 <= result["confidence"] <= 1.0, (
             f"Confidence {result['confidence']} is out of [0, 1] range."
         )
 
     def test_label_is_valid_int(self, observer) -> None:
-        result = observer.predict(self._idle_snapshot())
+        result = observer.predict(self._idle_snapshot(), node_id="test-node")
         assert result["label"] in (0, 1, 2), (
             f"label {result['label']!r} is not one of {{0, 1, 2}}."
         )
 
     def test_state_matches_label(self, observer) -> None:
         label_to_state = {0: "idle", 1: "active_user", 2: "busy_hardware"}
-        result = observer.predict(self._idle_snapshot())
+        result = observer.predict(self._idle_snapshot(), node_id="test-node")
         assert result["state"] == label_to_state[result["label"]], (
             f"state {result['state']!r} does not match label {result['label']}."
         )
@@ -175,20 +173,20 @@ class TestObserverInference:
     # ── semantic correctness ──────────────────────────────────────────────────
 
     def test_idle_snapshot_classified_as_idle(self, observer) -> None:
-        result = observer.predict(self._idle_snapshot())
+        result = observer.predict(self._idle_snapshot(), node_id="test-node")
         assert result["state"] == "idle", (
             f"Expected 'idle', got {result['state']!r}. "
             "Check cluster→label mapping logic."
         )
 
     def test_active_user_snapshot_classified_correctly(self, observer) -> None:
-        result = observer.predict(self._active_user_snapshot())
+        result = observer.predict(self._active_user_snapshot(), node_id="test-node")
         assert result["state"] == "active_user", (
             f"Expected 'active_user', got {result['state']!r}."
         )
 
     def test_busy_hw_snapshot_classified_correctly(self, observer) -> None:
-        result = observer.predict(self._busy_hw_snapshot())
+        result = observer.predict(self._busy_hw_snapshot(), node_id="test-node")
         assert result["state"] == "busy_hardware", (
             f"Expected 'busy_hardware', got {result['state']!r}."
         )
@@ -199,7 +197,7 @@ class TestObserverInference:
         bad_snapshot = {k: v for k, v in self._idle_snapshot().items()
                         if k != "cpu_usage_pct"}
         with pytest.raises(ValueError, match="missing required keys"):
-            observer.predict(bad_snapshot)
+            observer.predict(bad_snapshot, node_id="test-node")
 
     def test_metadata_property_returns_dict(self, observer) -> None:
         meta = observer.metadata

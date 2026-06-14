@@ -95,6 +95,27 @@ Look at your terminal window. If it prints:
 
 To see your laptop's stats, go to your web browser and visit `http://<MASTER_IP>:3005`. You will see a neat dashboard showing your name!
 
+### Step 6: Open Port 50052 So You Can Receive Tasks 🔓
+Connecting (Step 5) is only HALF the story. To connect, you reach OUT to the master on port `50051`. But for the master to actually **send a task back to your laptop** and run it, the master must reach IN to your laptop on port **`50052`**.
+
+➡️ **This is the #1 thing that breaks remote task execution!** If port 50052 is closed, you'll connect just fine and show up on the dashboard, but no tasks will ever actually run on your machine.
+
+**Windows (easiest):** When you first start your agent, Windows may pop up "Windows Defender Firewall has blocked some features"  for `python.exe`. Just click **Allow Access**! 🎉
+
+**Windows (manual way):** Open an **Admin** PowerShell (right-click PowerShell → "Run as Administrator") and paste:
+```powershell
+New-NetFirewallRule -DisplayName "GridMind Node 50052" -Direction Inbound -LocalPort 50052 -Protocol TCP -Action Allow
+```
+
+### Step 7: Stay Plugged Into Power! 🔌
+GridMind has **battery protection** built in. If your laptop is running on battery (unplugged), GridMind will **skip your laptop** and not send it any tasks. So keep your charger plugged in for the whole demo to make sure your laptop gets work to do!
+
+### ✅ Confirm It Really Works
+Want proof your laptop is truly running tasks? Easy:
+1. On the **Master dashboard**, submit `demo_tasks/00_which_node.py` as an **Urgent** task.
+2. Look at the output. It prints the **hostname** of the laptop that actually ran it.
+3. If it shows **your** hostname, remote execution is working perfectly! 🥳
+
 ---
 
 ## 🚨 Troubleshooting

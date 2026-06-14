@@ -1,3 +1,9 @@
+"""
+Optional one-off tool to (re)download CAISO carbon data from the WattTime API.
+NOT required for the demo — the repo already ships
+`watttime_carbon_data_CAISO_NORTH.csv`. Requires an extra dependency that is
+intentionally NOT in requirements.txt:  pip install watttime
+"""
 import os
 import argparse
 from datetime import datetime

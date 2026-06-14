@@ -6,30 +6,28 @@ class GridMindEnv:
     """
     Custom Gym-like environment for the GridMind Dispatcher.
     
-    State: [Queue_Size, Carbon_Intensity_Normalized, Node_1_State, Node_2_State, Node_3_State]
-        - Queue_Size: 0 to MAX_QUEUE (int)
-        - Carbon_Intensity: 0.0 to 1.0 (float)
-        - Node State: 0 (idle), 1 (active_user), 2 (busy_hardware)
-        
+    State: 10 dimensions (queue, carbon, node_stats, priority_stats)
     Actions:
         0: Defer (Do nothing)
-        1: Dispatch to Node 1
-        2: Dispatch to Node 2
-        3: Dispatch to Node 3
+        1: Dispatch (Heuristically pick best idle node)
     """
     
-    def __init__(self, carbon_csv_path: str, max_queue: int = 5):
+    def __init__(self, carbon_csv_path: str, max_queue: int = 20):
         self.max_queue = max_queue
-        self.num_nodes = 3
-        self.action_space_n = 1 + self.num_nodes # Defer + Dispatch to each node
-        self.state_space_n = 2 + self.num_nodes  # queue, carbon, [nodes...]
+        self.num_nodes = 5  # arbitrary
+        self.action_space_n = 2
+        self.state_space_n = 10
         
         # Load carbon data
         self._load_carbon_data(carbon_csv_path)
         
         self.current_step = 0
         self.queue_size = 0
-        self.node_states = [0, 0, 0]
+        self.urgent_count = 0
+        self.deferrable_count = 0
+        self.best_effort_count = 0
+        self.node_states = []
+        self._randomize_nodes()
         
     def _load_carbon_data(self, csv_path: str):
         try:
@@ -45,17 +43,34 @@ class GridMindEnv:
             
     def _randomize_nodes(self):
         """Randomly change node states to simulate real world."""
-        # 60% idle, 25% active, 15% busy
         self.node_states = np.random.choice([0, 1, 2], p=[0.60, 0.25, 0.15], size=self.num_nodes).tolist()
         
     def get_state(self) -> np.ndarray:
         carbon = self.carbon_series[self.current_step % len(self.carbon_series)]
-        state = [self.queue_size, carbon] + self.node_states
+        q_norm = min(1.0, self.queue_size / float(self.max_queue))
+        
+        idle = sum(1 for s in self.node_states if s == 0) / self.num_nodes
+        active = sum(1 for s in self.node_states if s == 1) / self.num_nodes
+        busy = sum(1 for s in self.node_states if s == 2) / self.num_nodes
+        
+        # mock averages
+        avg_cpu = 0.2 * idle + 0.5 * active + 0.9 * busy
+        avg_ram = 0.4
+        
+        tot = max(1, self.urgent_count + self.deferrable_count + self.best_effort_count)
+        u_ratio = self.urgent_count / tot
+        d_ratio = self.deferrable_count / tot
+        b_ratio = self.best_effort_count / tot
+        
+        state = [q_norm, carbon, idle, active, busy, avg_cpu, avg_ram, u_ratio, d_ratio, b_ratio]
         return np.array(state, dtype=np.float32)
         
     def reset(self) -> np.ndarray:
         self.current_step = 0
         self.queue_size = np.random.randint(0, self.max_queue + 1)
+        self.urgent_count = np.random.randint(0, self.queue_size + 1)
+        self.deferrable_count = np.random.randint(0, self.queue_size - self.urgent_count + 1)
+        self.best_effort_count = self.queue_size - self.urgent_count - self.deferrable_count
         self._randomize_nodes()
         return self.get_state()
         
@@ -76,16 +91,18 @@ class GridMindEnv:
                 reward += 0.5 # Sensible to do nothing if empty queue
         else:
             # Attempt Dispatch
-            target_idx = action - 1
             if self.queue_size == 0:
                 reward -= 5.0 # Penalty for dispatching when no tasks exist
             else:
-                target_state = self.node_states[target_idx]
-                if target_state == 0:
+                idle_nodes = [i for i, s in enumerate(self.node_states) if s == 0]
+                if idle_nodes:
                     # Successful dispatch to idle node
                     reward += 10.0
                     reward += (1.0 - carbon) * 5.0 # Bonus for green energy
                     self.queue_size -= 1
+                    if self.urgent_count > 0: self.urgent_count -= 1
+                    elif self.deferrable_count > 0: self.deferrable_count -= 1
+                    else: self.best_effort_count -= 1
                 else:
                     # Disastrous penalty for interrupting active/busy node
                     reward -= 50.0 
@@ -97,6 +114,10 @@ class GridMindEnv:
         # 3. Randomly add new tasks
         if np.random.random() < 0.2 and self.queue_size < self.max_queue:
             self.queue_size += 1
+            r = np.random.random()
+            if r < 0.1: self.urgent_count += 1
+            elif r < 0.4: self.deferrable_count += 1
+            else: self.best_effort_count += 1
             
         # Queue penalty
         if self.queue_size == self.max_queue:

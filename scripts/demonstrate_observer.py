@@ -82,7 +82,7 @@ def run_demo():
     print("\n[Step 3] Running Simulation Scenarios:")
     for s in scenarios:
         print(f"\n--- Scenario: {s['name']} ---")
-        pred = observer.predict(s['data'])
+        pred = observer.predict(s['data'], node_id=s['name'])
         print(f"  Result:     {pred['state'].upper()}")
         print(f"  Label ID:   {pred['label']}")
         print(f"  Confidence: {pred['confidence']:.2%}")

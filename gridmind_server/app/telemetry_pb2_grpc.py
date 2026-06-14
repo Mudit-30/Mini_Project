@@ -39,12 +39,34 @@ class TelemetryServiceStub(object):
                 request_serializer=telemetry__pb2.TelemetryData.SerializeToString,
                 response_deserializer=telemetry__pb2.TelemetryResponse.FromString,
                 _registered_method=True)
+        self.RunTask = channel.unary_stream(
+                '/telemetry.TelemetryService/RunTask',
+                request_serializer=telemetry__pb2.TaskPayload.SerializeToString,
+                response_deserializer=telemetry__pb2.TaskResult.FromString,
+                _registered_method=True)
+        self.AbortTask = channel.unary_unary(
+                '/telemetry.TelemetryService/AbortTask',
+                request_serializer=telemetry__pb2.AbortRequest.SerializeToString,
+                response_deserializer=telemetry__pb2.AbortAck.FromString,
+                _registered_method=True)
 
 
 class TelemetryServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def StreamTelemetry(self, request_iterator, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RunTask(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AbortTask(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -57,6 +79,16 @@ def add_TelemetryServiceServicer_to_server(servicer, server):
                     servicer.StreamTelemetry,
                     request_deserializer=telemetry__pb2.TelemetryData.FromString,
                     response_serializer=telemetry__pb2.TelemetryResponse.SerializeToString,
+            ),
+            'RunTask': grpc.unary_stream_rpc_method_handler(
+                    servicer.RunTask,
+                    request_deserializer=telemetry__pb2.TaskPayload.FromString,
+                    response_serializer=telemetry__pb2.TaskResult.SerializeToString,
+            ),
+            'AbortTask': grpc.unary_unary_rpc_method_handler(
+                    servicer.AbortTask,
+                    request_deserializer=telemetry__pb2.AbortRequest.FromString,
+                    response_serializer=telemetry__pb2.AbortAck.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -86,6 +118,60 @@ class TelemetryService(object):
             '/telemetry.TelemetryService/StreamTelemetry',
             telemetry__pb2.TelemetryData.SerializeToString,
             telemetry__pb2.TelemetryResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RunTask(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/telemetry.TelemetryService/RunTask',
+            telemetry__pb2.TaskPayload.SerializeToString,
+            telemetry__pb2.TaskResult.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AbortTask(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/telemetry.TelemetryService/AbortTask',
+            telemetry__pb2.AbortRequest.SerializeToString,
+            telemetry__pb2.AbortAck.FromString,
             options,
             channel_credentials,
             insecure,
