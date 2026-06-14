@@ -119,7 +119,7 @@ A Next.js-powered visual interface.
 | Directory | Description |
 | :--- | :--- |
 | `protos/` | Contains the `.proto` definitions for the data schema used in gRPC communication between nodes and the server. |
-| `demo_tasks/` | Vetted demo scripts: `00_which_node.py` (proves which laptop actually ran a task), `parallel_primes.py` (data-parallel demo), `01_calculate_pi.py` / `02_mock_ml_training.py` / `03_financial_backtest.py` (single-node demos), and `submit_tasks.py` (helper to submit them). |
+| `demo_tasks/` | Vetted demo scripts that do **real** computation (pure-stdlib, so they run on any node): `00_which_node.py` (proves which laptop ran a task), `parallel_primes.py` (data-parallel demo), `01_calculate_pi.py` (real Monte Carlo Pi), `02_ml_training.py` (a real 1-hidden-layer neural net trained from scratch with backprop — loss falls, ~95% test accuracy), `03_financial_backtest.py` (a real SMA-crossover backtest benchmarked vs buy-and-hold), and `submit_tasks.py` (helper to submit them). |
 | `scripts/` | Helper scripts for demonstrations (e.g., `demonstrate_observer.py`) and development utilities. |
 | `data/` | Storage for training datasets, including the real WattTime CAISO grid history (8,929 rows of marginal-emissions MOER data). |
 | `models/` | Persistent storage for serialized AI models: `observer/rf_model.joblib` + `observer/scaler.joblib` + `observer/model_metadata.json` (held-out accuracy + confusion matrix) for the Observer, and `dispatcher_dqn.pt` (PyTorch DQN state_dict) for the Dispatcher. |

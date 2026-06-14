@@ -55,8 +55,8 @@ if __name__ == "__main__":
     #   deferrable -> waits for a clean-grid window
     files = [
         ("01_calculate_pi.py", "Monte Carlo Pi Estimation", "deferrable"),
-        ("02_mock_ml_training.py", "Mock Neural-Net Training", "urgent"),
-        ("03_financial_backtest.py", "Algo-Trading Backtest", "best_effort"),
+        ("02_ml_training.py", "Neural-Net Training (from scratch)", "urgent"),
+        ("03_financial_backtest.py", "SMA Crossover Backtest", "best_effort"),
     ]
 
     for filename, name, priority in files:

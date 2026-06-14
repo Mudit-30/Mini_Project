@@ -1,27 +1,44 @@
-import time
-import random
+"""
+GridMind demo: estimate Pi by Monte Carlo — real, honest computation.
 
-def estimate_pi(num_points):
-    inside_circle = 0
-    total_points = num_points
-    
-    print(f"Starting Pi estimation using Monte Carlo method with {total_points} points.")
-    
-    for i in range(1, total_points + 1):
-        x = random.uniform(-1, 1)
-        y = random.uniform(-1, 1)
-        
-        if x**2 + y**2 <= 1:
-            inside_circle += 1
-            
-        if i % (total_points // 10) == 0:
-            current_pi = 4 * inside_circle / i
-            progress = (i / total_points) * 100
-            print(f"[Progress: {progress:3.0f}%] Current Pi Estimate: {current_pi:.6f}")
-            time.sleep(0.5) # Simulate heavy computation
-            
-    final_pi = 4 * inside_circle / total_points
-    print(f"Finished! Final Pi Estimate: {final_pi:.6f}")
+Throws millions of random darts into the unit square and counts how many land
+inside the quarter circle. The ratio (inside / total) approaches pi/4, so
+4 * inside / total -> pi. No time.sleep() padding: the runtime you see is real
+CPU work, which is exactly what GridMind is meant to offload to an idle node.
+"""
+import os
+import random
+import time
+
+TOTAL_POINTS = 5_000_000
+
+
+def main():
+    chunk = os.environ.get("GRIDMIND_CHUNK_INDEX")
+    if chunk is not None:
+        print(f"(running as parallel chunk {int(chunk) + 1})", flush=True)
+
+    print(f"Estimating Pi via Monte Carlo with {TOTAL_POINTS:,} random points...", flush=True)
+    t0 = time.time()
+    inside = 0
+    step = TOTAL_POINTS // 10
+
+    for i in range(1, TOTAL_POINTS + 1):
+        x = random.random()
+        y = random.random()
+        if x * x + y * y <= 1.0:
+            inside += 1
+        if i % step == 0:
+            print(
+                f"[{i * 100 // TOTAL_POINTS:3d}%] running estimate: {4.0 * inside / i:.6f}",
+                flush=True,
+            )
+
+    pi = 4.0 * inside / TOTAL_POINTS
+    err = abs(pi - 3.141592653589793)
+    print(f"\nFinished in {time.time() - t0:.1f}s.", flush=True)
+    print(f"Final Pi estimate: {pi:.6f}  (error vs math.pi: {err:.6f})", flush=True)
+
 
 if __name__ == "__main__":
-    estimate_pi(10000000)
+    main()

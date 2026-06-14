@@ -97,6 +97,6 @@ Watch all 4 node cards appear.
 
 ## 6. Demo task files (`demo_tasks/`)
 - `00_which_node.py` — proves which laptop ran it (use for the §1 check + headline).
-- `01_calculate_pi.py`, `02_mock_ml_training.py`, `03_financial_backtest.py` — vetted single-node tasks (always succeed, stream nice output).
+- `01_calculate_pi.py` (real Monte Carlo), `02_ml_training.py` (real neural net trained from scratch with backprop — loss falls, accuracy ~95%), `03_financial_backtest.py` (real SMA-crossover backtest vs buy-and-hold) — vetted single-node tasks that do genuine computation (stdlib only, run on any node), not scripted output.
 - `parallel_primes.py` — the data-parallel job (counts primes, split across nodes).
 - `submit_tasks.py` — batch-submit the single-node tasks from the CLI.
