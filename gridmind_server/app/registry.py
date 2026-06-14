@@ -52,12 +52,15 @@ class NodeRegistry:
                 "state":                prediction["state"],
                 "label":                prediction["label"],
                 "confidence":           round(prediction["confidence"], 4),
-                "cpu_usage_pct":        telemetry["cpu_usage_pct"],
-                "ram_usage_pct":        telemetry["ram_usage_pct"],
-                "kb_events_per_min":    telemetry["kb_events_per_min"],
-                "mouse_events_per_min": telemetry["mouse_events_per_min"],
-                "net_io_bytes":         telemetry["net_io_bytes"],
-                "process_count":        telemetry["process_count"],
+                # .get with defaults: a single malformed telemetry packet (missing a
+                # field) must not raise here — that KeyError would propagate up and
+                # tear down the node's entire telemetry stream (then requeue its task).
+                "cpu_usage_pct":        telemetry.get("cpu_usage_pct", 0.0),
+                "ram_usage_pct":        telemetry.get("ram_usage_pct", 0.0),
+                "kb_events_per_min":    telemetry.get("kb_events_per_min", 0),
+                "mouse_events_per_min": telemetry.get("mouse_events_per_min", 0),
+                "net_io_bytes":         telemetry.get("net_io_bytes", 0),
+                "process_count":        telemetry.get("process_count", 0),
                 "capabilities":         {
                     "cpu_cores":   telemetry.get("cpu_cores", 1),
                     "gpu_vram_gb": telemetry.get("gpu_vram_gb", 0.0),
@@ -97,9 +100,27 @@ class NodeRegistry:
             self._data.pop(node_id, None)
 
     def safe_nodes(self) -> list[str]:
-        """Return node_ids whose latest Observer AI state is 'idle'."""
+        """Return node_ids that are idle AND power/thermal-safe to dispatch to.
+
+        Mirrors the dispatcher loop's selection (`_power_ok`) so the /nodes/safe
+        endpoint doesn't advertise a node as safe that the dispatcher will actually
+        skip for battery/thermal protection.
+        """
         with self._lock:
-            return [nid for nid, v in self._data.items() if v["state"] == "idle"]
+            safe = []
+            for nid, v in self._data.items():
+                if v.get("state") != "idle":
+                    continue
+                if v.get("on_battery"):
+                    continue
+                batt = v.get("battery_percent", 100.0)
+                if batt and batt < 20.0:
+                    continue
+                temp = v.get("cpu_temp_c", 0.0)
+                if temp and temp > 85.0:
+                    continue
+                safe.append(nid)
+            return safe
 
     def __len__(self) -> int:
         with self._lock:

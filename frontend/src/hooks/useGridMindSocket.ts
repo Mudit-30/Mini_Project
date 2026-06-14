@@ -12,6 +12,31 @@ import type {
 
 const MAX_HISTORY = 40;
 
+/** Shape of the messages pushed over /ws/telemetry. All fields optional because
+ *  the frontend must tolerate partial/malformed frames without crashing. */
+interface WSMessage {
+  type?: string;
+  nodes?: (NodeTelemetry & { node_id: string })[];
+  node?: NodeTelemetry & { node_id: string };
+  node_id?: string;
+  strategy?: string;
+  queue_size?: number;
+  carbon_savings?: string;
+  carbon_intensity?: number;
+  carbon_gco2?: number | null;
+  reason?: string;
+  override?: Override;
+  carbon_baseline_g?: number;
+  carbon_gridmind_g?: number;
+  carbon_saved_g?: number;
+  carbon_tasks_counted?: number;
+  carbon_forecast?: number[];
+  clean_window_min?: number | null;
+  task_id?: string;
+  stdout?: string;
+  stderr?: string;
+}
+
 /**
  * Owns all live dashboard state: opens the telemetry WebSocket (falling back to
  * REST polling), throttles the high-frequency node/task streams to a 250 ms
@@ -42,6 +67,10 @@ export function useGridMindSocket() {
 
   const eventId = useRef(0);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelayRef = useRef(1000); // exponential backoff, capped
+  const unmountedRef = useRef(false);
   const strategyRef = useRef(strategy);
   strategyRef.current = strategy;
 
@@ -100,11 +129,23 @@ export function useGridMindSocket() {
         telemetry: n,
       }));
       setNodes(arr);
-      setError(null);
+      // NOTE: do NOT clear `error` here. While in REST-fallback mode the dispatcher,
+      // carbon and task streams are frozen, so the degraded banner must persist until
+      // the WebSocket actually reconnects (cleared in socket.onopen).
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startPolling = () => {
+    if (!pollingRef.current) pollingRef.current = setInterval(fetchNodes, 3000);
+  };
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
   };
 
@@ -126,36 +167,45 @@ export function useGridMindSocket() {
   };
 
   useEffect(() => {
-    const socket = new WebSocket(WS_URL);
+    unmountedRef.current = false;
 
-    socket.onopen = () => {
-      // The server pushes an "initial_state" message on connect, so we don't need
-      // a redundant REST fetch here — it would just be overwritten immediately.
-      setError(null);
+    const scheduleReconnect = () => {
+      if (unmountedRef.current || reconnectTimerRef.current) return;
+      // Degraded mode: poll node telemetry over REST until the WS is back. The
+      // dispatcher/carbon/task streams stay frozen, so keep the banner up.
+      setError("Live connection lost — reconnecting… (node telemetry via REST; dispatcher/carbon paused)");
+      startPolling();
+      const delay = reconnectDelayRef.current;
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        reconnectDelayRef.current = Math.min(delay * 2, 15000); // backoff, cap 15s
+        connect();
+      }, delay);
     };
-    socket.onerror = () => {
-      setError("WebSocket failed — polling node telemetry via REST (dispatcher/carbon streams paused)…");
-      setLoading(false);
-      // Guard against stacking intervals if onerror + onclose both fire.
-      if (!pollingRef.current) pollingRef.current = setInterval(fetchNodes, 3000);
-    };
-    socket.onclose = () => console.log("WS closed");
 
-    socket.onmessage = (ev) => {
-      const data = JSON.parse(ev.data);
+    const handleMessage = (ev: MessageEvent) => {
+      let data: WSMessage;
+      try {
+        data = JSON.parse(ev.data);
+      } catch {
+        // Ignore malformed/non-JSON frames instead of throwing inside the handler.
+        return;
+      }
+      if (!data || typeof data !== "object") return;
 
       if (data.type === "initial_state") {
-        const arr = (data.nodes ?? []).map((n: NodeTelemetry & { node_id: string }) => ({
-          node_id: n.node_id,
-          telemetry: n,
-        }));
+        const arr = (data.nodes ?? [])
+          .filter((n) => n && n.node_id)
+          .map((n) => ({ node_id: n.node_id, telemetry: n }));
         setNodes(arr);
         setLoading(false);
       } else if (data.type === "node_update") {
+        if (!data.node || !data.node.node_id) return; // ignore malformed frame
         setLoading(false);
         nodeBufferRef.current.set(data.node.node_id, data.node);
         needsNodeFlushRef.current = true;
       } else if (data.type === "node_remove") {
+        if (!data.node_id) return;
         // Also drop from the throttle buffer, else the next 250ms flush would
         // resurrect the just-removed node as a ghost.
         nodeBufferRef.current.delete(data.node_id);
@@ -164,16 +214,18 @@ export function useGridMindSocket() {
         setLoading(false);
         const ci = data.carbon_intensity ?? 0.5;
         const gco2 = data.carbon_gco2 ?? null;
-        setStrategy(data.strategy);
-        setTasksQueued(data.queue_size);
-        setCarbonSavings(data.carbon_savings);
+        const strategy = data.strategy ?? strategyRef.current;
+        const queue = data.queue_size ?? 0;
+        setStrategy(strategy);
+        setTasksQueued(queue);
+        setCarbonSavings(data.carbon_savings ?? "—");
         if (data.reason !== undefined) setReason(data.reason);
         setOverride(data.override ?? null);
         if (data.carbon_baseline_g !== undefined) {
           setCarbonBaselineG(data.carbon_baseline_g);
-          setCarbonGridmindG(data.carbon_gridmind_g);
-          setCarbonSavedG(data.carbon_saved_g);
-          setCarbonTasksCounted(data.carbon_tasks_counted);
+          setCarbonGridmindG(data.carbon_gridmind_g ?? 0);
+          setCarbonSavedG(data.carbon_saved_g ?? 0);
+          setCarbonTasksCounted(data.carbon_tasks_counted ?? 0);
         }
         if (Array.isArray(data.carbon_forecast)) setForecast(data.carbon_forecast);
         if (data.clean_window_min !== undefined) setForecastCleanInMin(data.clean_window_min);
@@ -182,20 +234,64 @@ export function useGridMindSocket() {
           setCarbonGco2(gco2);
           pushCarbonPoint(gco2);
         }
-        pushDispatchEvent(data.strategy, gco2 ?? ci * 500, data.queue_size);
+        // Only log a real measured carbon number; never fabricate one from ci.
+        pushDispatchEvent(strategy, gco2 ?? NaN, queue);
       } else if (data.type === "task_output") {
-        if (!taskOutputBufferRef.current[data.task_id]) {
-          taskOutputBufferRef.current[data.task_id] = [];
+        if (!data.task_id) return;
+        const tid = data.task_id;
+        if (!taskOutputBufferRef.current[tid]) {
+          taskOutputBufferRef.current[tid] = [];
         }
-        if (data.stdout) taskOutputBufferRef.current[data.task_id].push(data.stdout.trimEnd());
-        if (data.stderr) taskOutputBufferRef.current[data.task_id].push(`[ERR] ${data.stderr.trimEnd()}`);
+        if (data.stdout) taskOutputBufferRef.current[tid].push(data.stdout.trimEnd());
+        if (data.stderr) taskOutputBufferRef.current[tid].push(`[ERR] ${data.stderr.trimEnd()}`);
         needsTaskFlushRef.current = true;
       }
     };
 
+    function connect() {
+      if (unmountedRef.current) return;
+      let socket: WebSocket;
+      try {
+        socket = new WebSocket(WS_URL);
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        // Connected: clear the degraded banner, reset backoff, and stop the REST
+        // fallback poll (the server pushes initial_state + live streams now).
+        setError(null);
+        reconnectDelayRef.current = 1000;
+        stopPolling();
+      };
+      socket.onmessage = handleMessage;
+      // Both onerror and onclose can fire; scheduleReconnect is idempotent.
+      socket.onerror = () => {
+        setLoading(false);
+      };
+      socket.onclose = () => {
+        socketRef.current = null;
+        scheduleReconnect();
+      };
+    }
+
+    connect();
+
     return () => {
-      socket.close();
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      unmountedRef.current = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      stopPolling();
+      const s = socketRef.current;
+      if (s) {
+        s.onclose = null; // prevent reconnect-on-unmount
+        s.close();
+        socketRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

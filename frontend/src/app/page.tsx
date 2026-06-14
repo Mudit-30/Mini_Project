@@ -54,8 +54,8 @@ function carbonColorFor(t: number): string {
 export default function DashboardPage() {
   const s = useGridMindSocket();
 
-  const idleCount = s.nodes.filter((n) => n.telemetry.state === "idle").length;
-  const isDispatch = s.strategy.includes("DISPATCH");
+  const idleCount = s.nodes.filter((n) => n.telemetry?.state === "idle").length;
+  const isDispatch = (s.strategy ?? "").includes("DISPATCH");
 
   if (s.loading && s.nodes.length === 0) {
     return (

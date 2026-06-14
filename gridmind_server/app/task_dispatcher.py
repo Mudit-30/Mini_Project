@@ -49,19 +49,22 @@ async def requeue_node_tasks(node_id: str) -> None:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         async with AsyncSessionLocal() as session:
-            # Under the cap → back to the pending queue for re-dispatch elsewhere.
-            await session.execute(
-                "UPDATE tasks SET status='pending', assigned_node=NULL, dispatched_at=NULL, "
-                "retry_count=retry_count+1 "
-                "WHERE assigned_node=? AND status IN ('dispatched','running') AND retry_count < ?",
-                (node_id, MAX_TASK_RETRIES),
-            )
-            # Out of retries → give up honestly.
+            # Order matters: FAIL the already-exhausted tasks FIRST, THEN increment
+            # the rest. If we incremented first, a task at retry_count == MAX-1 would
+            # be bumped to MAX and then immediately matched by the >= MAX fail clause
+            # in the same call — losing its final legitimate retry (off-by-one).
             await session.execute(
                 "UPDATE tasks SET status='failed', completed_at=?, "
                 "stderr='Node disconnected and retry limit reached.' "
                 "WHERE assigned_node=? AND status IN ('dispatched','running') AND retry_count >= ?",
                 (now, node_id, MAX_TASK_RETRIES),
+            )
+            # Still under the cap → back to the pending queue for re-dispatch elsewhere.
+            await session.execute(
+                "UPDATE tasks SET status='pending', assigned_node=NULL, dispatched_at=NULL, "
+                "retry_count=retry_count+1 "
+                "WHERE assigned_node=? AND status IN ('dispatched','running') AND retry_count < ?",
+                (node_id, MAX_TASK_RETRIES),
             )
         logger.info("Re-queued in-flight tasks for disconnected node '%s'.", node_id)
         await ws_manager.broadcast({"type": "node_remove", "node_id": node_id})
@@ -167,6 +170,7 @@ async def dispatch_task_to_node(node_address: str, task_dict: dict) -> None:
                         chunk_count = int(task_dict.get("chunk_count", 1) or 1),
                     )
 
+                    terminal_seen = False
                     async for result in stub.RunTask(payload):
                         success = True
                         # Accumulate stdout for final DB write
@@ -186,6 +190,7 @@ async def dispatch_task_to_node(node_address: str, task_dict: dict) -> None:
 
                         # When execution finishes, persist final state
                         if result.status in ("completed", "failed", "aborted"):
+                            terminal_seen = True
                             await _update_task_db(
                                 task_id,
                                 status       = result.status,
@@ -215,12 +220,16 @@ async def dispatch_task_to_node(node_address: str, task_dict: dict) -> None:
                                 is_success = (result.status == "completed" and result.exit_code == 0)
                                 node_registry.update_reliability(node_id, is_success)
 
-                if success:
+                if terminal_seen:
                     # Flush post-terminal stdout (e.g. artifact packaging/upload lines
                     # the executor emits after the completed/failed result) so the
                     # persisted log matches what the dashboard streamed live.
                     await _update_task_db(task_id, stdout="".join(stdout_lines))
                     break
+                # The stream ended WITHOUT a terminal status — the node closed the
+                # connection mid-task (crash, lid-close, kill). Do NOT leave the task
+                # stuck in 'running'; raise so the retry/requeue path below runs.
+                raise RuntimeError("Node closed the task stream before reporting completion")
             except grpc.RpcError as exc:
                 if exc.code() == grpc.StatusCode.UNAVAILABLE:
                     logger.warning("Target %s unavailable, trying next target address...", current_target)

@@ -12,6 +12,12 @@ const STATE_DOT: Record<NodeState, string> = {
   unknown: "bg-faint",
 };
 
+function formatLastSeen(ts: string | undefined): string {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleTimeString();
+}
+
 // A user is present (active) — highlight the card so the "veto" moment pops on stage.
 const STATE_RING: Record<NodeState, string> = {
   idle: "",
@@ -21,7 +27,13 @@ const STATE_RING: Record<NodeState, string> = {
 };
 
 export const NodeCard = React.memo(function NodeCard({ node }: { node: Node }) {
-  const { state, battery_percent, on_battery, cpu_temp_c } = node.telemetry;
+  // Be defensive: a malformed/partial node payload must never white-screen the
+  // whole dashboard. Default telemetry and coerce numeric fields.
+  const t = node.telemetry ?? ({} as Node["telemetry"]);
+  const { battery_percent, on_battery, cpu_temp_c } = t;
+  const state: NodeState = t.state ?? "unknown";
+  const cpu = Number(t.cpu_usage_pct) || 0;
+  const ram = Number(t.ram_usage_pct) || 0;
   const hasBattery = battery_percent !== undefined;
   const hasTemp = cpu_temp_c !== undefined && cpu_temp_c > 0;
   const lowBattery = hasBattery && (battery_percent as number) < 20;
@@ -55,8 +67,8 @@ export const NodeCard = React.memo(function NodeCard({ node }: { node: Node }) {
       </div>
       <div className="space-y-4">
         {[
-          { label: "CPU", value: node.telemetry.cpu_usage_pct, color: "bg-accent" },
-          { label: "RAM", value: node.telemetry.ram_usage_pct, color: "bg-accent-2" },
+          { label: "CPU", value: cpu, color: "bg-accent" },
+          { label: "RAM", value: ram, color: "bg-accent-2" },
         ].map(({ label, value, color }) => (
           <div key={label}>
             <div className="flex justify-between text-xs mb-1.5">
@@ -66,7 +78,7 @@ export const NodeCard = React.memo(function NodeCard({ node }: { node: Node }) {
             <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
               <div
                 className={`${color} h-full rounded-full transition-all duration-500`}
-                style={{ width: `${value}%` }}
+                style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
               />
             </div>
           </div>
@@ -108,7 +120,7 @@ export const NodeCard = React.memo(function NodeCard({ node }: { node: Node }) {
           <Clock className="w-3.5 h-3.5" />
           <span>Last Seen</span>
         </div>
-        <span>{new Date(node.telemetry.last_seen).toLocaleTimeString()}</span>
+        <span>{formatLastSeen(t.last_seen)}</span>
       </div>
     </motion.div>
   );

@@ -24,7 +24,7 @@ export const SystemLoadTrends = React.memo(function SystemLoadTrends({ nodes }: 
             <div className="h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={nodes.map((n) => ({ name: n.node_id, val: n.telemetry[key] }))}
+                  data={nodes.map((n) => ({ name: n.node_id, val: Number(n.telemetry?.[key]) || 0 }))}
                   margin={{ left: -20 }}
                 >
                   <defs>
@@ -37,7 +37,7 @@ export const SystemLoadTrends = React.memo(function SystemLoadTrends({ nodes }: 
                   <XAxis dataKey="name" stroke="#5b6475" fontSize={9} />
                   <YAxis stroke="#5b6475" fontSize={9} domain={[0, 100]} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#0e1016", border: "1px solid var(--border)", borderRadius: "8px" }}
+                    contentStyle={{ backgroundColor: "#0e1016", border: "1px solid var(--card-border)", borderRadius: "8px" }}
                     itemStyle={{ color: stroke }}
                   />
                   <Area type="monotone" dataKey="val" stroke={stroke} strokeWidth={2} fillOpacity={1} fill={`url(#${id})`} />

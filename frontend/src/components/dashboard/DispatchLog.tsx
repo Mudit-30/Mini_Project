@@ -39,7 +39,7 @@ export const DispatchLog = React.memo(function DispatchLog({ events }: { events:
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-foreground truncate">{ev.strategy}</p>
                     <p className="text-xs text-muted font-mono mt-1 font-medium">
-                      {ev.time} · {Math.round(ev.gco2)} g/kWh · Q={ev.queue}
+                      {ev.time} · {Number.isFinite(ev.gco2) ? `${Math.round(ev.gco2)} g/kWh · ` : ""}Q={ev.queue}
                     </p>
                   </div>
                 </motion.div>

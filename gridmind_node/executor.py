@@ -110,18 +110,29 @@ async def run_script(
 
             await loop.run_in_executor(None, download)
             yield _make_result(task_id, stdout="[GridMind] Extracting workspace...\n")
-            
+
             def extract():
+                # Guard against zip-slip / path traversal: a crafted artifact could
+                # contain entries like "..\..\evil" or absolute paths that escape the
+                # workspace and overwrite arbitrary files on the worker. Validate every
+                # member resolves to a path inside workspace_dir before extracting.
+                ws_real = os.path.realpath(workspace_dir)
                 with zipfile.ZipFile(zip_path, 'r') as zf:
+                    for member in zf.namelist():
+                        dest = os.path.realpath(os.path.join(workspace_dir, member))
+                        if dest != ws_real and not dest.startswith(ws_real + os.sep):
+                            raise ValueError(f"Unsafe path in artifact ZIP: {member!r}")
                     zf.extractall(workspace_dir)
                 os.remove(zip_path) # cleanup zip
-            
+
             await loop.run_in_executor(None, extract)
             yield _make_result(task_id, stdout="[GridMind] Workspace ready.\n")
-            
-            # Save the script into the workspace
+
+            # Save the script into the workspace. encoding="utf-8" is REQUIRED: the
+            # default on Windows is cp1252, which raises UnicodeEncodeError on any
+            # non-cp1252 char (em-dash, emoji, etc.) in the script source.
             path = os.path.join(workspace_dir, "gridmind_entry.py")
-            with open(path, "w") as fh:
+            with open(path, "w", encoding="utf-8") as fh:
                 fh.write(script)
                 
         except Exception as e:
@@ -132,9 +143,12 @@ async def run_script(
             return
             
     else:
-        # Legacy single-script mode
+        # Legacy single-script mode. encoding="utf-8" is REQUIRED (see above): without
+        # it, a script containing an em-dash/emoji fails to even be written on Windows
+        # ("'charmap' codec can't encode characters").
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, prefix=f"gm_{task_id[:8]}_"
+            mode="w", suffix=".py", delete=False, prefix=f"gm_{task_id[:8]}_",
+            encoding="utf-8",
         ) as fh:
             fh.write(script)
             path = fh.name
@@ -198,6 +212,12 @@ async def run_script(
         # or output-then-hang script. Enforce the deadline on every read.
         deadline = loop.time() + float(timeout_s)
         timed_out = False
+        # Cap total streamed stdout so a runaway task (infinite/huge print) can't
+        # exhaust memory on the node or master. Keep draining the pipe past the cap
+        # (so the child never blocks on a full pipe) but stop forwarding content.
+        MAX_STDOUT_BYTES = 2 * 1024 * 1024   # 2 MB
+        stdout_bytes = 0
+        truncated = False
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
@@ -210,7 +230,16 @@ async def run_script(
                 break
             if not raw_line:          # EOF — process closed stdout
                 break
-            yield _make_result(task_id, stdout=raw_line.decode(errors="replace"), status="running")
+            stdout_bytes += len(raw_line)
+            if stdout_bytes <= MAX_STDOUT_BYTES:
+                yield _make_result(task_id, stdout=raw_line.decode(errors="replace"), status="running")
+            elif not truncated:
+                truncated = True
+                yield _make_result(
+                    task_id,
+                    stdout=f"\n[GridMind] --- output truncated at {MAX_STDOUT_BYTES // (1024*1024)} MB ---\n",
+                    status="running",
+                )
 
         if not timed_out:
             # stdout closed; give the process a brief bounded window to actually exit.
@@ -220,7 +249,9 @@ async def run_script(
                 timed_out = True
 
         if timed_out:
-            _kill_proc(proc)
+            # taskkill/killpg are blocking — run off the event loop so telemetry
+            # streaming and other tasks don't freeze during the kill.
+            await loop.run_in_executor(None, _kill_proc, proc)
             stderr_task.cancel()
             logger.warning("Task %s timed out after %ds — killed.", task_id, timeout_s)
             yield _make_result(
@@ -279,7 +310,7 @@ async def run_script(
     finally:
         proc_running = _running.pop(task_id, None)
         if proc_running:
-            _kill_proc(proc_running)
+            await loop.run_in_executor(None, _kill_proc, proc_running)
         _aborted.discard(task_id)
         if not has_artifact:
             try:
@@ -306,12 +337,18 @@ async def abort_task(task_id: str) -> bool:
         return True
         
     _aborted.add(task_id)
-    try:
+
+    def _signal_abort() -> None:
         if sys.platform == "win32":
             # Kill the whole tree (proc.terminate() leaves grandchildren orphaned).
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
         else:
             os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+
+    try:
+        # Blocking taskkill/killpg — run off the event loop so the gRPC servicer
+        # handling AbortTask doesn't stall the whole agent during the kill.
+        await asyncio.get_running_loop().run_in_executor(None, _signal_abort)
         logger.info("Abort signalled to task %s", task_id)
         return True
     except (ProcessLookupError, OSError) as exc:

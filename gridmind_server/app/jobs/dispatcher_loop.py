@@ -198,18 +198,26 @@ async def _dispatch_highest_priority_task(node_id: str, node_address: str) -> st
                 return None
 
             now = datetime.datetime.now(datetime.timezone.utc)
-            # Mutate the loaded row only to build the gRPC payload (to_dict below);
-            # the update() is what actually persists — commit() does NOT flush a
-            # loaded-then-mutated row in this lightweight ORM.
+            # Atomically CLAIM the task: the UPDATE only succeeds while it is still
+            # 'pending'. This guards against a select-then-update race where a
+            # concurrent cancel or node-disconnect requeue changed the task between
+            # our SELECT and UPDATE — without the status guard + rowcount check we
+            # could resurrect a cancelled task or double-dispatch it.
+            cur = await db.execute(
+                "UPDATE tasks SET status='dispatched', assigned_node=?, dispatched_at=? "
+                "WHERE task_id=? AND status='pending'",
+                (node_id, now.isoformat(), task.task_id),
+            )
+            if (getattr(cur, "rowcount", 1) or 0) == 0:
+                logger.info(
+                    "Task %s was no longer pending at claim time — skipping dispatch.",
+                    task.task_id,
+                )
+                return None
+            # Mirror the claim onto the in-memory row only to build the gRPC payload.
             task.status        = "dispatched"
             task.assigned_node = node_id
             task.dispatched_at = now
-            await db.execute(
-                update(TaskRecord)
-                .where(TaskRecord.task_id == task.task_id)
-                .values(status="dispatched", assigned_node=node_id, dispatched_at=now)
-            )
-            await db.commit()
 
             logger.info(
                 "Task '%s' (%s) dispatched → node '%s' @ %s",
