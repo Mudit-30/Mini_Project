@@ -19,8 +19,17 @@ We convert to g CO2/kWh for display:
 import os
 import numpy as np
 import pandas as pd
-# pyrefly: ignore [missing-import]
-from statsmodels.tsa.arima.model import ARIMA
+
+# statsmodels (ARIMA) is an OPTIONAL forecasting artifact, fit once at startup.
+# The live "2-hour Grid Outlook" is driven by the replayed CSV series in
+# dispatcher_loop, NOT by this model — so a missing statsmodels must NOT take
+# down the whole dispatcher loop (which imports this module). Degrade gracefully:
+# fit() raises a clear error only if it is actually called without statsmodels.
+try:
+    # pyrefly: ignore [missing-import]
+    from statsmodels.tsa.arima.model import ARIMA
+except ImportError:  # pragma: no cover - depends on the runtime environment
+    ARIMA = None
 
 # Conversion factor: 1 lb/MWh = 0.453592 g/kWh
 LBS_MWH_TO_GCO2_KWH = 0.453592
@@ -36,6 +45,12 @@ class CarbonForecaster:
         self._last_value_lbs: float = 600.0   # sensible default (~272 g/kWh)
 
     def fit(self, csv_path: str | None = None):
+        if ARIMA is None:
+            raise RuntimeError(
+                "statsmodels is not installed — ARIMA forecaster unavailable. "
+                "The dispatcher loop still runs on the replayed carbon series; "
+                "install statsmodels to enable the ARIMA artifact."
+            )
         if csv_path is None:
             csv_path = os.path.abspath(os.path.join(
                 os.path.dirname(__file__), "..", "..", "..", "watttime_carbon_data_CAISO_NORTH.csv"
