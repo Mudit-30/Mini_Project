@@ -42,6 +42,13 @@ export interface Task {
   dispatched_at: string | null;
   has_artifact?: boolean;
   output_artifact_path?: string | null;
+  // Persisted result (present once the task has run). Used as a fallback in the
+  // expand panel when the live WebSocket stream buffer is empty — e.g. after a
+  // page refresh or for a task that finished before it was expanded.
+  stdout?: string | null;
+  stderr?: string | null;
+  exit_code?: number | null;
+  duration_secs?: number | null;
 }
 
 /** The guardrail (if any) that overrode the learned DQN policy. */

@@ -266,7 +266,23 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
           <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 scrollbar-thin">
             {tasks.map((t) => {
               const isExpanded = expandedTask === t.task_id;
-              const hasOutput = taskOutput[t.task_id] && taskOutput[t.task_id].length > 0;
+              const liveLines = taskOutput[t.task_id];
+              const hasLive = liveLines && liveLines.length > 0;
+              // Fall back to the persisted result when no live stream was captured
+              // (page refresh, or task finished before it was expanded). Split the
+              // stored stdout/stderr into lines and tag stderr with [ERR] so it
+              // reuses the same red styling as the live stream.
+              const storedLines: string[] = [
+                ...(t.stdout ? t.stdout.replace(/\r\n/g, "\n").split("\n") : []),
+                ...(t.stderr ? t.stderr.replace(/\r\n/g, "\n").split("\n").map((l) => `[ERR] ${l}`) : []),
+              ].filter((l) => l.trim() !== "" && l !== "[ERR] ");
+              if (typeof t.exit_code === "number") {
+                storedLines.push(
+                  `— exit ${t.exit_code}${t.duration_secs != null ? ` · ${t.duration_secs.toFixed(1)}s` : ""}`
+                );
+              }
+              const lines = hasLive ? liveLines : storedLines;
+              const hasOutput = lines.length > 0;
               return (
                 <div
                   key={t.id}
@@ -320,8 +336,17 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
                   {isExpanded && (
                     <div className="mt-2 bg-black/50 rounded-md p-3 font-mono text-[10px] sm:text-xs text-accent-2 overflow-y-auto max-h-32 border border-white/5 scrollbar-thin flex flex-col gap-0.5">
                       {hasOutput ? (
-                        taskOutput[t.task_id].map((line, i) => (
-                          <div key={i} className={line.startsWith("[ERR]") ? "text-carbon-dirty" : ""}>
+                        lines.map((line, i) => (
+                          <div
+                            key={i}
+                            className={
+                              line.startsWith("[ERR]")
+                                ? "text-carbon-dirty"
+                                : line.startsWith("— exit")
+                                ? "text-faint mt-1"
+                                : ""
+                            }
+                          >
                             {line}
                           </div>
                         ))
