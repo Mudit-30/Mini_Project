@@ -47,7 +47,7 @@ When the panel asks *why* this project is necessary or what research gaps it fil
 A user uploads a script, a `.py` file, or a ZIP. The server routes it to a safe idle node over gRPC, runs it, and streams **live stdout** back to the dashboard. Urgent tasks dispatch immediately; deferrable tasks wait for a clean grid window.
 
 ### Battery & Thermal Protection (the "⛔ Protected" guard)
-We are running on someone's *personal* laptop, so we never drain or cook it. A node is skipped if it is **on battery**, **below 20% charge**, or **above 85°C**. The dashboard shows a "⛔ Protected" pill, and the dispatcher reports "DEFERRING — Protecting Node Battery/Temp."
+We are running on someone's *personal* laptop, so we never drain or cook it. A node is skipped only if it is **on battery AND below 30% charge**, or **above 85°C** — a healthy laptop on battery still does work (so the cluster runs even when no one is near an outlet). The dashboard shows a "⛔ Protected" pill, and the dispatcher reports "DEFERRING — Protecting Node Battery/Temp."
 
 ### Fault-Tolerant Re-Dispatch
 If a worker node drops mid-task, the server automatically **re-queues** the task and sends it to another node — up to **3 retries**. If it still can't complete, we report an **honest failure** (real status, real exit code) rather than pretending it worked.

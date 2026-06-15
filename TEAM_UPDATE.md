@@ -23,7 +23,7 @@ There are four things that make GridMind different from anything else out there:
 GridMind moved from "decides where a task *would* run" to **actually running real workloads end-to-end**:
 
 - **Remote task execution** — submit a shell command, a `.py` upload, or a ZIP project; the server picks a safe idle node and streams live stdout back. Urgent tasks run immediately; deferrable tasks wait for a clean grid.
-- **Battery & thermal protection** — a node is skipped (marked **"⛔ Protected"**) if it's on battery, below 20% charge, or above 85 °C. Active-user input also vetoes dispatch.
+- **Battery & thermal protection** — a node is skipped (marked **"⛔ Protected"**) only if it's on battery **and below 30% charge**, or above 85 °C. A healthy on-battery laptop still gets work, so the cluster runs even with nobody plugged in. Active-user input also vetoes dispatch.
 - **Fault-tolerant re-dispatch** — if a node drops mid-task, the task is re-queued (≤ 3 retries), tried on another node, and only then fails *honestly* with a real status.
 - **Data-parallel job splitting** — split a job into N chunks (`GRIDMIND_CHUNK_INDEX` / `GRIDMIND_CHUNK_COUNT`), fan one chunk out per free node, and report a **measured speedup** when ≥ 2 nodes are available.
 - **Marginal-emissions Carbon Proof** — every completed task reports emissions at submit-time vs. actual run-time (~50 W draw), showing **gCO₂ saved + % reduction** in tangible units.
@@ -231,7 +231,7 @@ python agent.py --server <MASTER_IP>:50051 --node-id <YOUR_NAME>
 
 > **Network / firewall:** The **master** must allow **inbound :50051** (telemetry gRPC).
 > Each **worker** must allow **inbound :50052** (so the master can dispatch tasks to it).
-> Keep workers **plugged in** — a node on battery is auto-skipped by thermal/battery protection.
+> Workers can run **on battery** — only a low (**<30%**) or hot (**>85°C**) laptop is auto-skipped by battery/thermal protection.
 
 ---
 
@@ -239,7 +239,7 @@ python agent.py --server <MASTER_IP>:50051 --node-id <YOUR_NAME>
 
 To join the GridMind cluster, you only need to run the **Node Agent**. Follow these steps:
 
-1. **Prerequisites**: Ensure you have Python 3.10+ installed, you are on the **same Wi-Fi network** as the Master laptop, your laptop is **plugged in**, and your firewall allows **inbound :50052** (the master dispatches tasks to your machine on this port).
+1. **Prerequisites**: Ensure you have Python 3.10+ installed, you are on the **same Wi-Fi network** as the Master laptop, and your firewall allows **inbound :50052** (the master dispatches tasks to your machine on this port). Battery is fine — just keep charge **above 30%**.
 2. **Setup**:
    ```bash
    git clone <repo-url>
@@ -253,7 +253,7 @@ To join the GridMind cluster, you only need to run the **Node Agent**. Follow th
    ```
 4. **Verify**: Open `http://<MASTER_IP>:3005` in your browser to see your laptop pop up on the dashboard! Once idle and on a clean grid, the master can dispatch real tasks to you and stream their output back.
 
-> **Stay plugged in:** a node running on battery (or below 20% charge, or above 85 °C) is automatically skipped and shown as **"⛔ Protected"** — it won't receive tasks.
+> **Battery is OK:** a node is only skipped (shown as **"⛔ Protected"**) when it's on battery **and below 30% charge**, or above 85 °C. A healthy on-battery laptop still receives tasks.
 
 ---
 

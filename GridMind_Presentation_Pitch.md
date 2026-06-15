@@ -21,7 +21,7 @@ Traditional grids require dedicated, idle computers that nobody is using. If you
 *   **Hardware State Classification**: An **Observer AI**—a supervised **scikit-learn RandomForest classifier (99.2% held-out accuracy)**—evaluates hardware telemetry (CPU, RAM, Net I/O) along with keyboard and mouse input event frequencies.
 *   **Human Activity Burst Detection**: If a developer touches their keyboard or mouse, a background listener detects the burst.
 *   **Emergency Abort & Deferral**: The Node Agent immediately sends a gRPC abort signal, stops the task subprocess instantly to free up 100% of resources for the developer, and the Dispatcher AI re-queues or migrates the task. The human never even realizes a background training task was running.
-*   **Respect-the-Human Power & Thermal Protection**: Nodes also report **battery %, on-battery status, and CPU temperature**. The Dispatcher will never dispatch to a machine that is **running on battery, below 20% charge, or hotter than 85°C**—it marks them "⛔ Protected." GridMind borrows your idle compute, never your battery life or a comfortable lap.
+*   **Respect-the-Human Power & Thermal Protection**: Nodes also report **battery %, on-battery status, and CPU temperature**. The Dispatcher will never dispatch to a machine that is **on battery and below 30% charge, or hotter than 85°C**—it marks them "⛔ Protected." A healthy laptop on battery still helps out, so the cluster works untethered; GridMind borrows your idle compute, never your last 30% of battery or a comfortable lap.
 
 ### 3. 🤖 Smart Dispatcher (Reinforcement Learning)
 Static rules (like assigning tasks in a simple loop) fail in dynamic office environments where computers turn off, go to sleep, or get used by humans at random.

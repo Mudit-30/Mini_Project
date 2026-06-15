@@ -107,8 +107,8 @@ Connecting (Step 5) is only HALF the story. To connect, you reach OUT to the mas
 New-NetFirewallRule -DisplayName "GridMind Node 50052" -Direction Inbound -LocalPort 50052 -Protocol TCP -Action Allow
 ```
 
-### Step 7: Stay Plugged Into Power! 🔌
-GridMind has **battery protection** built in. If your laptop is running on battery (unplugged), GridMind will **skip your laptop** and not send it any tasks. So keep your charger plugged in for the whole demo to make sure your laptop gets work to do!
+### Step 7: Keep Some Battery! 🔋
+GridMind has **battery protection** built in, but running on battery is fine. It only **skips your laptop** if you're on battery **and below 30% charge** (or your CPU is over 85 °C). So you don't need to stay plugged in — just keep charge above ~30% during the demo and you'll get work.
 
 ### ✅ Confirm It Really Works
 Want proof your laptop is truly running tasks? Easy:

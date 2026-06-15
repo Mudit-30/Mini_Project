@@ -126,7 +126,7 @@ Measured Carbon Proof. This is our headline. We do not estimate savings from a f
 
 ## 11. Setting Up the Network
 
-Bringing the cluster online is simple. The master laptop listens for incoming connections on port 50051. Each worker laptop listens for incoming work on port 50052, and every worker should be plugged into power before it joins. A worker joins the cluster by running:
+Bringing the cluster online is simple. The master laptop listens for incoming connections on port 50051. Each worker laptop listens for incoming work on port 50052. Workers can run on battery (only a laptop below 30% charge, or over 85°C, is skipped for protection). A worker joins the cluster by running:
 
 `python gridmind_node/agent.py --server <MASTER_IP>:50051 --node-id "Name"`
 

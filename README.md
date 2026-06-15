@@ -14,7 +14,7 @@ GridMind turns everyday laptops or workstations on a shared Wi-Fi network into a
 | **Carbon-Aware Dispatching** | Optimizes on **marginal emissions (WattTime CO₂ MOER)** — the CO₂ of the *next* MWh, the signal that actually changes when you shift load — deferring tasks out of dirty-grid windows. An ARIMA fit powers the explainable reasoning and the 2-hour grid outlook. |
 | **Deep RL Dispatcher** | Dueling Double DQN (10-feature state → defer / dispatch) trained on real CAISO carbon data; loaded as a native PyTorch `.pt` state_dict on CPU, inference **<10ms**. Two transparent safety guardrails (urgent → run now; clean grid → dispatch). |
 | **Remote Task Execution** | Submit a shell script, a single `.py` file (dashboard upload), or a ZIP workspace → runs on a safe idle node → **stdout streams back live**. Urgent tasks run immediately; deferrable ones wait for a clean grid. |
-| **Battery & Thermal Protection** | Nodes report battery %, on-battery state, and CPU temperature; the dispatcher skips nodes that are on battery, **<20%**, or **>85°C**, surfaced as "⛔ Protected". |
+| **Battery & Thermal Protection** | Nodes report battery %, on-battery state, and CPU temperature; the dispatcher skips a node only when it's on battery **and below 30%**, or **>85°C**, surfaced as "⛔ Protected". A healthy on-battery laptop still does work — no need to stay plugged in. |
 | **Fault-Tolerant Re-Dispatch** | A node disconnecting or going unreachable mid-task auto-re-queues the task (≤3 retries) and re-dispatches it to another node; once retries are exhausted it reports an honest failure. |
 | **Data-Parallel Job Splitting** | One job → N chunks (via `GRIDMIND_CHUNK_INDEX` / `GRIDMIND_CHUNK_COUNT`) fanned out one-per-free-node → run concurrently → measured speedup shown (only when ≥2 nodes share the work). |
 | **Honest Results** | Real statuses and exit codes (no forced "completed"); cancel sends an `AbortTask` that actually kills the remote subprocess. |
@@ -80,7 +80,7 @@ python gridmind_node/agent.py --server <MASTER_IP>:50051 --node-id <your-name>
 
 Open `http://localhost:3005` — the dashboard shows live node health, carbon intensity, and dispatcher decisions.
 
-> **Firewall note (the #1 thing that breaks remote execution):** the master needs inbound **:50051** (telemetry in), and each **worker** needs inbound **:50052** so the master can dispatch tasks to it. Keep workers plugged in (nodes on battery are skipped for protection).
+> **Firewall note (the #1 thing that breaks remote execution):** the master needs inbound **:50051** (telemetry in), and each **worker** needs inbound **:50052** so the master can dispatch tasks to it. Workers can run on battery; only a low (<30%) or hot laptop is skipped for protection.
 
 ---
 
@@ -117,7 +117,7 @@ Full Swagger docs: `http://localhost:8000/docs`
 | Dispatcher AI decision time | < 10ms | ✅ ~4ms (PyTorch `.pt` on CPU) |
 | Node agent CPU footprint | < 2% | ✅ Confirmed |
 | In-flight task recovery on node loss | re-dispatch | ✅ Auto re-queue, ≤3 retries, then honest failure |
-| Battery / thermal node protection | skip unsafe | ✅ On-battery, <20%, or >85°C → ⛔ Protected |
+| Battery / thermal node protection | skip unsafe | ✅ On battery **&lt;30%**, or **&gt;85°C** → ⛔ Protected (healthy on-battery still runs) |
 
 ---
 

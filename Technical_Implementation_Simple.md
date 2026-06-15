@@ -26,7 +26,7 @@ These sit quietly in the background on the worker laptops. They have two jobs: (
 *   **Telemetry Tracking:** Using **`psutil`** (for CPU, memory, battery, temperature) and **`pynput`** (for keyboard and mouse activity), they constantly monitor the hardware and watch for real human input.
 *   **Communication Layer:** We use **gRPC**.
     *   *Why gRPC?* Unlike normal website traffic (REST APIs) which requires a heavy "handshake" every time, gRPC acts like a permanent open pipe. It streams data back and forth incredibly fast and is very lightweight — it takes less than **2% of the laptop's CPU** to run.
-    *   *Ports:* Each worker **sends** its telemetry out to the master on port **`50051`**, and **listens** for incoming tasks to run on its own port **`50052`**. (For the demo, all worker laptops are plugged into power.)
+    *   *Ports:* Each worker **sends** its telemetry out to the master on port **`50051`**, and **listens** for incoming tasks to run on its own port **`50052`**. (Worker laptops can run on battery, as long as charge stays above ~30%.)
 
 ---
 
@@ -79,7 +79,7 @@ Beyond just *deciding*, GridMind genuinely runs the work. These behaviours are a
 
 *   **Remote Task Execution:** You can submit a one-line script, upload a `.py` file, or upload a whole `.zip` workspace. The server routes it to a safe, idle node, the node runs it, and the **stdout streams back live** to the dashboard as it happens. **Urgent** tasks run immediately; **deferrable** tasks wait for the grid to get cleaner before they go.
 *   **Active-User Veto:** If the Observer detects real input on a candidate node, that node is marked **`active_user`** and is **excluded** from receiving work — the human always wins.
-*   **Battery & Thermal Protection:** Nodes are **skipped** if they are on battery, below **20% charge**, or running hotter than **85°C**. The dashboard flags them as **"⛔ Protected"** so we never burn someone's battery or cook their laptop.
+*   **Battery & Thermal Protection:** Nodes are **skipped** only if they are on battery **and below 30% charge**, or running hotter than **85°C**. A healthy laptop on battery still does work (so the cluster runs untethered). The dashboard flags skipped ones as **"⛔ Protected"** so we never drain someone's last bit of battery or cook their laptop.
 *   **Fault Tolerance:** If a node drops mid-task, the task is automatically **re-queued and retried (up to 3 times)** on another node. If every retry is exhausted, the system reports an **honest failure** rather than pretending it succeeded.
 *   **Data-Parallel Job Splitting:** A single job can be split into **N chunks** (via env `GRIDMIND_CHUNK_INDEX` / `GRIDMIND_CHUNK_COUNT`), fanned out **one chunk per free node**, and run **concurrently**. When **2 or more nodes** are free, we show a **measured speedup**.
 *   **Honest Results:** We surface the **real exit codes and statuses** from the remote processes — no faked "success." Hitting cancel sends an **`AbortTask`** signal that actually **kills the remote subprocess**.

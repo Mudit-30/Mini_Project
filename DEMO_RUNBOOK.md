@@ -14,7 +14,7 @@ Everything to run the live demo and defend it. Read once before the room.
    New-NetFirewallRule -DisplayName "GridMind Node 50052" -Direction Inbound -LocalPort 50052 -Protocol TCP -Action Allow
    ```
    (Or just click "Allow" when Windows prompts for `python.exe`.)
-3. Same **Wi-Fi** as the master, and stay **plugged in** (battery protection will skip you otherwise).
+3. Same **Wi-Fi** as the master. Battery is fine — just keep charge **above 30%** (a low/hot laptop is skipped by protection).
 
 ### On the MASTER laptop (you)
 1. `pip install -r requirements.txt`
@@ -86,7 +86,7 @@ Watch all 4 node cards appear.
 |---|---|
 | Task runs on the **master**, not the teammate | Teammate firewall blocking 50052 (see §0). |
 | Node card never appears | Wrong master IP, or not on the same Wi-Fi. |
-| Task stays "pending" | No *free + plugged-in + idle* node — check battery/active state. |
+| Task stays "pending" | No *free + idle + power-safe* node — check active-user / low-battery (<30%) / temp state. |
 | Parallel speedup shows "sequential" | Needs ≥2 free nodes at submit time. |
 | Active-user veto too slow | Set `GRIDMIND_SMOOTHING_WINDOW=3` before launch. |
 | Grid carbon barely moves | Raise `GRIDMIND_CARBON_STRIDE` (e.g. 12). |
