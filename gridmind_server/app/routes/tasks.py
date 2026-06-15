@@ -154,12 +154,15 @@ async def list_tasks(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    Returns tasks ordered by priority DESC (urgent first), then by
-    submission time ASC (FIFO within each tier).
+    Returns tasks newest-first (most recently submitted at the top). This is the
+    "Recent Tasks" view, so a just-submitted task always appears immediately —
+    ordering by priority here would push a new low-priority (or any) task below
+    the limit window when many tasks exist. (Dispatch order is decided separately
+    in the dispatcher loop, not by this display query.)
     """
     stmt = (
         select(TaskRecord)
-        .order_by(TaskRecord.priority_str.desc(), TaskRecord.submitted_at)
+        .order_by(TaskRecord.submitted_at.desc())
         .limit(limit)
     )
     if status:
@@ -198,13 +201,29 @@ async def get_task(
     return _serialize(task)
 
 
-@router.delete("/{task_id}", summary="Cancel a pending, dispatched, or running task")
-async def cancel_task(
+@router.delete("", summary="Clear all finished (completed/failed/cancelled) tasks from history")
+async def clear_finished_tasks(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Bulk-remove every task in a terminal state from history. Active tasks
+    (pending/dispatched/running) are left untouched — cancel those individually.
+    """
+    cur = await db.execute(
+        "DELETE FROM tasks WHERE status IN ('completed','failed','cancelled')"
+    )
+    removed = getattr(cur, "rowcount", 0) or 0
+    return {"message": f"Cleared {removed} finished task(s) from history.", "removed": removed}
+
+
+@router.delete("/{task_id}", summary="Cancel an active task, or remove a finished task from history")
+async def cancel_or_remove_task(
     task_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    Cancel a task that is in **pending**, **dispatched**, or **running** status.
+    - If the task is **pending / dispatched / running**: cancel it (abort on node).
+    - If the task is **completed / failed / cancelled**: remove it from history.
     """
     result = await db.execute(
         select(TaskRecord).where(TaskRecord.task_id == task_id)
@@ -212,16 +231,14 @@ async def cancel_task(
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found.")
-    
-    if task.status not in ("pending", "dispatched", "running"):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Cannot cancel task in '{task.status}' state. "
-                "Only pending, dispatched, or running tasks can be cancelled."
-            ),
-        )
-    
+
+    # Finished task → delete the record from history.
+    if task.status in ("completed", "failed", "cancelled"):
+        await db.execute("DELETE FROM tasks WHERE task_id=?", (task_id,))
+        return {"message": f"Task '{task_id}' removed from history.", "removed": True}
+
+    # Otherwise it is active → cancel it.
+
     # Try to cancel active gRPC dispatch task if running
     from app.task_dispatcher import cancel_active_task
     await cancel_active_task(task_id)

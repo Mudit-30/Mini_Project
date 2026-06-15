@@ -7,6 +7,7 @@ import {
   Loader2,
   Package,
   PlusCircle,
+  Trash2,
   UploadCloud,
   XCircle,
 } from "lucide-react";
@@ -119,6 +120,8 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
     }
   };
 
+  // DELETE /tasks/{id} now does the right thing by state: cancels an active task,
+  // or removes a finished one from history. Same call for both buttons.
   const cancel = async (task_id: string) => {
     try {
       await fetch(`${API}/api/v1/tasks/${task_id}`, { method: "DELETE" });
@@ -127,6 +130,19 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
       /* ignore */
     }
   };
+
+  const clearFinished = async () => {
+    try {
+      await fetch(`${API}/api/v1/tasks`, { method: "DELETE" });
+      loadTasks();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const finishedCount = tasks.filter((t) =>
+    ["completed", "failed", "cancelled"].includes(t.status)
+  ).length;
 
   return (
     <div className="card card-hover p-6 flex flex-col gap-5">
@@ -259,7 +275,19 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
 
       {/* Task list */}
       <div className="border-t border-white/10 pt-4">
-        <p className="section-label mb-3">Recent Tasks</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="section-label">Recent Tasks</p>
+          {finishedCount > 0 && (
+            <button
+              onClick={clearFinished}
+              title="Remove all completed/failed/cancelled tasks from history"
+              className="flex items-center gap-1.5 text-xs font-mono text-faint hover:text-carbon-dirty transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear finished ({finishedCount})
+            </button>
+          )}
+        </div>
         {tasks.length === 0 ? (
           <p className="text-muted text-sm text-center py-5">No tasks yet — submit one above.</p>
         ) : (
@@ -318,9 +346,9 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
                         <XCircle className="w-5 h-5" />
                       </button>
                     )}
-                    {t.status === "completed" && (
+                    {(t.status === "completed" || t.status === "failed" || t.status === "cancelled") && (
                       <div className="flex items-center gap-2 shrink-0">
-                        {t.output_artifact_path && (
+                        {t.status === "completed" && t.output_artifact_path && (
                           <a
                             href={`${API}/api/v1/tasks/${t.task_id}/artifact/output`}
                             title="Download Output Workspace"
@@ -329,7 +357,15 @@ export function TaskPanel({ taskOutput }: { taskOutput: Record<string, string[]>
                             <Download className="w-5 h-5" />
                           </a>
                         )}
-                        <CheckCircle2 className="w-5 h-5 text-carbon-clean" />
+                        {t.status === "completed" && <CheckCircle2 className="w-5 h-5 text-carbon-clean" />}
+                        <button
+                          onClick={() => cancel(t.task_id)}
+                          title="Remove from history"
+                          aria-label={`Remove task ${t.name} from history`}
+                          className="text-faint hover:text-carbon-dirty transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     )}
                   </div>
