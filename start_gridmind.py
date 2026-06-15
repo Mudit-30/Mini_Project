@@ -143,7 +143,13 @@ def run():
             "--app-dir", str(PROJECT_ROOT / "gridmind_server"),
             "--host", "0.0.0.0",
             "--port", "8000",
-            "--reload",
+            # NOTE: no --reload. This is a run/demo launcher, not a hot-reload dev
+            # server. With --reload, ANY file touched under the project (even an
+            # editor save or a stray scratch file) restarts the uvicorn worker,
+            # which re-binds the gRPC port :50051 before the old worker releases it
+            # → the backend crashes and the whole stack goes down. Running without
+            # --reload makes the stack immune to file changes. To iterate on backend
+            # code, just stop and re-run start_gridmind.py.
         ]
         proc_backend = subprocess.Popen(
             backend_cmd, env=backend_env,
