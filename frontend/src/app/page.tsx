@@ -23,6 +23,7 @@ import { DispatchLog } from "@/components/dashboard/DispatchLog";
 import { TaskPanel } from "@/components/dashboard/TaskPanel";
 import { JobPanel } from "@/components/dashboard/JobPanel";
 import { ConfusionMatrix } from "@/components/dashboard/ConfusionMatrix";
+import { ModelStats } from "@/components/dashboard/ModelStats";
 import { SystemLoadTrends } from "@/components/dashboard/SystemLoadTrends";
 import { LiveClock } from "@/components/dashboard/LiveClock";
 
@@ -207,6 +208,11 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <TaskPanel taskOutput={s.taskOutput} />
           <ConfusionMatrix />
+        </motion.div>
+
+        {/* ── Observer AI performance stats (precision/recall/F1 per class) ── */}
+        <motion.div variants={itemVariants} className="mb-8">
+          <ModelStats />
         </motion.div>
 
         {/* ── Parallel compute (data-parallel job splitting) ── */}

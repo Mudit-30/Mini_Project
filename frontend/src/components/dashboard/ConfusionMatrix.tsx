@@ -29,7 +29,19 @@ export function ConfusionMatrix() {
       .catch(() => setFailed(true));
   }, []);
 
-  if (failed || !meta?.confusion_matrix) return null;
+  if (failed || !meta?.confusion_matrix) {
+    return (
+      <div className="card card-hover p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain className="w-4 h-4 text-accent" />
+          <h2 className="section-label">Observer AI — Honest Evaluation</h2>
+        </div>
+        <p className="text-sm text-muted py-6 text-center">
+          {failed ? "Observer metadata unavailable — is the backend running?" : "Loading evaluation…"}
+        </p>
+      </div>
+    );
+  }
 
   const labels = meta.confusion_matrix_labels;
   const cm = meta.confusion_matrix;
