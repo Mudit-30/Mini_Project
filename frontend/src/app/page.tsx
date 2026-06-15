@@ -23,6 +23,7 @@ import { DispatchLog } from "@/components/dashboard/DispatchLog";
 import { TaskPanel } from "@/components/dashboard/TaskPanel";
 import { JobPanel } from "@/components/dashboard/JobPanel";
 import { ConfusionMatrix } from "@/components/dashboard/ConfusionMatrix";
+import { DispatcherMatrix } from "@/components/dashboard/DispatcherMatrix";
 import { ModelStats } from "@/components/dashboard/ModelStats";
 import { SystemLoadTrends } from "@/components/dashboard/SystemLoadTrends";
 import { LiveClock } from "@/components/dashboard/LiveClock";
@@ -204,15 +205,19 @@ export default function DashboardPage() {
           <DispatchLog events={s.dispatchLog} />
         </motion.div>
 
-        {/* ── Task submission + honest-ML panel ── */}
+        {/* ── Task submission + Observer performance stats ── */}
         <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <TaskPanel taskOutput={s.taskOutput} />
-          <ConfusionMatrix />
+          <ModelStats />
         </motion.div>
 
-        {/* ── Observer AI performance stats (precision/recall/F1 per class) ── */}
-        <motion.div variants={itemVariants} className="mb-8">
-          <ModelStats />
+        {/* ── AI model evaluation: both models' matrices side by side ── */}
+        <motion.div variants={itemVariants} className="mb-3 flex items-center gap-2 text-muted">
+          <h2 className="section-label">AI Model Evaluation</h2>
+        </motion.div>
+        <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ConfusionMatrix />
+          <DispatcherMatrix />
         </motion.div>
 
         {/* ── Parallel compute (data-parallel job splitting) ── */}

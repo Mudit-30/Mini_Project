@@ -101,6 +101,7 @@ async def lifespan(app: FastAPI):
         from app.ml.dispatcher_inference import DispatcherInference
         from app.jobs.dispatcher_loop import run_dispatcher_loop
         dispatcher_engine = DispatcherInference()
+        app.state.dispatcher_engine = dispatcher_engine
         dispatcher_task = asyncio.create_task(
             run_dispatcher_loop(dispatcher_engine),
             name="dispatcher-loop",
@@ -218,6 +219,36 @@ async def observer_metadata():
             return json.load(fh)
     except FileNotFoundError:
         return {"error": "Observer model not trained yet."}
+
+
+_dispatcher_matrix_cache: dict | None = None
+
+
+@app.get("/api/v1/dispatcher/metadata", tags=["Dispatcher"],
+         summary="Dispatcher DQN decision matrix vs the reward-optimal oracle")
+async def dispatcher_metadata():
+    """
+    The Dispatcher is reinforcement learning (no labelled ground truth), so this
+    returns a defer/dispatch decision-agreement matrix against the 1-step
+    reward-optimal action under the training environment. Computed once (the
+    policy + seeded sample are deterministic) and cached.
+    """
+    global _dispatcher_matrix_cache
+    if _dispatcher_matrix_cache is not None:
+        return _dispatcher_matrix_cache
+
+    engine = getattr(app.state, "dispatcher_engine", None)
+    if engine is None:
+        from app.ml.dispatcher_inference import DispatcherInference
+        engine = DispatcherInference()
+    try:
+        from app.ml.dispatcher_inference import evaluate_decision_matrix
+        # Off the event loop — this runs a few hundred sub-ms inferences.
+        _dispatcher_matrix_cache = await asyncio.to_thread(evaluate_decision_matrix, engine)
+        return _dispatcher_matrix_cache
+    except Exception as exc:
+        logger.warning("Dispatcher metadata eval failed: %s", exc)
+        return {"error": f"Dispatcher evaluation unavailable: {exc}"}
 
 
 @app.websocket("/ws/telemetry")
