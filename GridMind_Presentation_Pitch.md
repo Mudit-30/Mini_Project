@@ -136,6 +136,33 @@ GridMind never fakes success. Every task reports its **real status and exit code
 
 ---
 
+## 👥 Team & Work Distribution (4 Members)
+
+GridMind splits cleanly along its architecture, so each member owns one coherent subsystem end-to-end while sharing the integration seams (the gRPC contract and the dispatcher state vector). *Names/roles can be swapped to match your team.*
+
+| Member | Role | Subsystem | Owns (key files) |
+| :--- | :--- | :--- | :--- |
+| **Mudit Saxena** | Systems & Integration Lead | Central server, orchestration, data layer | `start_gridmind.py`, `gridmind_server/app/main.py`, `routes/` (`tasks.py`, `nodes.py`, `jobs.py`), `db/database.py`, `task_dispatcher.py`, `jobs/dispatcher_loop.py`, `websockets.py`, `registry.py` |
+| **Ananya** | AI / ML Engineer | The two models + carbon intelligence | `ml/observer_trainer.py`, `ml/observer_inference.py`, `ml/dispatcher_trainer.py`, `ml/dispatcher_env.py`, `ml/dispatcher_inference.py`, `carbon/forecaster.py`, `carbon/ledger.py`, `models/`, `data/` |
+| **Raj** | Node & Remote-Execution Engineer | The worker layer | `gridmind_node/agent.py`, `gridmind_node/executor.py`, `protos/telemetry.proto` (+ generated `*_pb2`), `demo_tasks/` |
+| **Ishmeher** | Frontend & UX Engineer | The live dashboard | `frontend/src/app/` (`page.tsx`, `layout.tsx`, `globals.css`), `frontend/src/hooks/useGridMindSocket.ts`, `frontend/src/lib/` (`api.ts`, `types.ts`), `frontend/src/components/dashboard/*` |
+
+### What each member built
+
+**1. Mudit Saxena — Systems & Integration Lead.** Built the FastAPI "central intelligence" master: the REST API (task submission, cancel/clear, artifact up/download, jobs), the hand-rolled async SQLite data layer (WAL), the 2-second dispatcher loop that fans tasks out across free nodes, the in-memory node registry, fault-tolerant re-dispatch (≤3 retries → honest failure), the WebSocket broadcaster, and the one-command launcher that brings the whole stack up. *Demo line: "I own how the cluster makes and tracks every decision."*
+
+**2. Ananya — AI / ML Engineer.** Trained and serves both models: the **Observer** (scikit-learn RandomForest, 99.2% held-out, with the confusion matrix + classification report) and the **Dispatcher** (Dueling Double DQN in PyTorch, the `GridMindEnv` reward design, sub-10ms `.pt` inference). Also owns the **carbon** stack — the ARIMA forecaster, the marginal-emissions replay, and the measured carbon-savings ledger — plus the honest evaluation matrices on the dashboard. *Demo line: "I own the intelligence — when to run, where, and how green."*
+
+**3. Raj — Node & Remote-Execution Engineer.** Built the worker side: the node agent (psutil + pynput telemetry, battery/thermal reporting, active-user burst detection, the inbound gRPC task server, reconnection/backoff) and the executor (isolated subprocess execution, live stdout streaming, timeout/abort with whole-tree kills, UTF-8 safety, zip-slip-safe artifacts, data-parallel chunking). Also designed the gRPC `telemetry.proto` contract and the real demo compute tasks. *Demo line: "I own everything that runs on a teammate's laptop — safely."*
+
+**4. Ishmeher — Frontend & UX Engineer.** Built the entire Next.js 16 / React 19 dashboard and its "living energy instrument" design system: the carbon-reactive UI, the live WebSocket hook (with auto-reconnect + REST fallback), the carbon gauge/chart/forecast, node health cards, the dispatcher action log, the task-submission panel (drag-drop, history, remove), the data-parallel job panel, and both model-evaluation matrices + the performance-stats section. *Demo line: "I own the single pane of glass the whole demo is shown on."*
+
+### Shared / collaborative work
+- **Integration seams** (everyone): the gRPC contract (`protos/telemetry.proto`) couples Raj's nodes ↔ Mudit's server; the 10-feature dispatcher **state vector** couples Mudit's loop ↔ Ananya's model — these were agreed and kept in sync across members.
+- **Docs, demo runbook, and testing** were a shared effort (`README.md`, `TEAM_UPDATE.md`, `DEMO_RUNBOOK.md`, the review/pitch decks).
+
+---
+
 ## 🌟 Why GridMind is the Future of Edge Computing
 
 1. **Zero Hardware Costs**: Organizations do not need to buy expensive servers. They can use the idle computing power of their developers' and designers' existing machines (which sit idle 70-80% of the day).
