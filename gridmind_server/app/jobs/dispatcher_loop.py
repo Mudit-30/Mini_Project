@@ -85,16 +85,20 @@ except Exception as e:
     logger.error("Failed to fit CarbonForecaster: %s", e)
 
 # Power/thermal protection thresholds for personal laptops.
-MIN_BATTERY_PCT = 20.0    # below this, leave the laptop alone even if plugged
+MIN_BATTERY_PCT = 30.0    # on battery, only protect the laptop once charge drops below this
 MAX_CPU_TEMP_C  = 85.0    # above this, don't add heat (only enforced if temp is known)
 
 
 def _power_ok(node: dict) -> bool:
-    """A node is safe to dispatch to only if we won't drain its battery or cook it."""
-    if node.get("on_battery"):
-        return False
+    """A node is safe to dispatch to unless we'd drain a low battery or cook it.
+
+    Running on battery is allowed as long as the charge is healthy — we only skip
+    a laptop that's on battery AND already low (< MIN_BATTERY_PCT), or overheating.
+    A plugged-in laptop is always fine (it's charging). This lets the cluster work
+    even when no one is near an outlet, while still protecting nearly-dead laptops.
+    """
     batt = node.get("battery_percent", 100.0)
-    if batt and batt < MIN_BATTERY_PCT:
+    if node.get("on_battery") and batt and batt < MIN_BATTERY_PCT:
         return False
     temp = node.get("cpu_temp_c", 0.0)
     if temp and temp > MAX_CPU_TEMP_C:

@@ -36,10 +36,11 @@ export const NodeCard = React.memo(function NodeCard({ node }: { node: Node }) {
   const ram = Number(t.ram_usage_pct) || 0;
   const hasBattery = battery_percent !== undefined;
   const hasTemp = cpu_temp_c !== undefined && cpu_temp_c > 0;
-  const lowBattery = hasBattery && (battery_percent as number) < 20;
+  const lowBattery = hasBattery && (battery_percent as number) < 30;
   const hot = hasTemp && (cpu_temp_c as number) > 85;
-  // "Protected" = the dispatcher will NOT send work here (battery/thermal guard).
-  const protectedNode = !!on_battery || lowBattery || hot;
+  // "Protected" = the dispatcher will NOT send work here. Mirrors _power_ok:
+  // on battery is fine unless the charge is low; plugged-in is always fine.
+  const protectedNode = (!!on_battery && lowBattery) || hot;
   const ring = protectedNode ? "ring-1 ring-carbon-mixed/50" : STATE_RING[state];
   return (
     <motion.div

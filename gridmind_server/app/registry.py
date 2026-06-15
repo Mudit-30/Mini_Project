@@ -111,10 +111,10 @@ class NodeRegistry:
             for nid, v in self._data.items():
                 if v.get("state") != "idle":
                     continue
-                if v.get("on_battery"):
-                    continue
+                # On battery is allowed unless the charge is low (< 30%); plugged-in
+                # is always fine. Mirrors _power_ok in the dispatcher loop.
                 batt = v.get("battery_percent", 100.0)
-                if batt and batt < 20.0:
+                if v.get("on_battery") and batt and batt < 30.0:
                     continue
                 temp = v.get("cpu_temp_c", 0.0)
                 if temp and temp > 85.0:
