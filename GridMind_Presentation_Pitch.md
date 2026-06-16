@@ -136,6 +136,71 @@ GridMind never fakes success. Every task reports its **real status and exit code
 
 ---
 
+## 🎬 Guided Walkthrough — Follow One Task End-to-End
+
+*This is the narrative to walk a panel through while the live demo runs. Each scene names the real mechanism, file, and port behind it.*
+
+### Scene 0 — Booting the master (`python start_gridmind.py`)
+One command brings the whole "central intelligence" online. The launcher (`start_gridmind.py`) starts services in dependency order:
+1. **FastAPI server** (`uvicorn`, port **8000**). On startup (its `lifespan`) it: initialises the **SQLite** task database (WAL mode), loads the **Observer AI** (a scikit-learn RandomForest), loads the **Dispatcher AI** (a PyTorch Dueling-DQN `.pt` on CPU), loads the real **WattTime carbon series** and fits the **ARIMA** forecaster, and launches the **2-second dispatcher loop**.
+2. **Async gRPC telemetry server** (port **50051**) — this is the master's "inbox" where every worker streams its vitals.
+3. **Next.js dashboard** (port **3005**) — served as a **production build** (`next start`) so it loads instantly and can't stall.
+4. **Local node agent** — the master's own laptop also joins as a worker.
+
+> Technical detail: a launch guard checks `/api/v1/health` first and **refuses to start a second copy**, so an accidental double-launch can't kill the running cluster. There's no `--reload`, so editing a file never restarts (and crashes) the backend mid-demo.
+
+### Scene 1 — A teammate's laptop joins the cluster
+A teammate runs **one command**:
+```bash
+python gridmind_node/agent.py --server <MASTER_IP>:50051 --node-id "Ishmeher"
+```
+The agent does two things: it **opens its own inbound gRPC task-server on port 50052** (so the master can later push work *to* it), and it **opens a streaming gRPC channel out to the master on 50051**. If the master is briefly unreachable, the agent retries with **exponential backoff** — nodes self-heal.
+
+> Technical detail: telemetry flows **out** (worker → master :50051); task dispatch flows **in** (master → worker :50052). That's why a worker's firewall must allow inbound 50052 and the master's must allow inbound 50051.
+
+### Scene 2 — Data collection (the telemetry heartbeat)
+Every **5 seconds**, each agent's collector (built on **`psutil`** for hardware and **`pynput`** for input) gathers a snapshot: **CPU %, RAM %, keyboard events/min, mouse events/min, network I/O, process count**, plus **battery %, on-battery state, and CPU temperature**. It streams this to the master over the gRPC channel — a continuous, low-overhead heartbeat (each agent uses <2% CPU).
+
+### Scene 3 — The master "understands" each laptop (Observer AI)
+For every telemetry snapshot, the master runs the **Observer AI** — a **RandomForest classifier (99.2% held-out accuracy)** that maps the 7 signals to one of three states: **`idle`**, **`active_user`**, or **`busy_hardware`**, with a confidence score. To avoid panicking on a single stray keystroke, it applies **temporal smoothing** (a majority vote over a rolling, configurable window). The result lands in the master's in-memory **`NodeRegistry`**, and a **`node_update`** message is pushed over **WebSocket** to the dashboard — which is why the node cards update live.
+
+> Technical detail: a telemetry packet missing a field can't crash the stream — the registry reads every field defensively (`.get` with defaults).
+
+### Scene 4 — Submitting a task
+On the dashboard, the user **drops a `.py` file**, types a script, or uploads a **`.zip` workspace**. This `POST /api/v1/tasks` stores the task in SQLite as **`pending`** and **stamps the current grid carbon** at submit-time (the naive "run it now" baseline, used later to prove savings). Nothing executes yet — it joins the queue.
+
+### Scene 5 — The decision (Dispatcher AI, every 2 s)
+The dispatcher loop wakes every 2 seconds and builds a **10-feature normalized state vector**: queue depth, current carbon intensity, the idle/active/busy node ratios, average CPU/RAM, and the urgent/deferrable/best-effort mix. It feeds this to the **Dueling Double DQN** (PyTorch, CPU) which returns **defer (0)** or **dispatch (1)** in **under 10 ms**. Two transparent **guardrails** can override the learned policy: **urgent work runs now** regardless of carbon, and a **clean grid forces a dispatch**. Before choosing a node it applies the **power/thermal filter** — a node that's on battery *and below 30%*, or hotter than 85 °C, is skipped (**⛔ Protected**) — then picks the safest free idle node (lowest CPU).
+
+> Technical detail: the task is **claimed atomically** (`UPDATE … WHERE status='pending'` with a row-count check) so the same task can never be double-dispatched or revived after a cancel.
+
+### Scene 6 — Dispatch & execution (the task lands on a worker)
+The master opens a gRPC channel to the chosen worker's **:50052** and sends a **`TaskPayload`** (script, timeout, priority, and chunk info). The worker's **executor** writes the script to a temp file (**UTF-8**, so em-dashes/emojis don't break it), spawns it in an **isolated subprocess**, and **streams stdout back line-by-line** over the gRPC stream. The master rebroadcasts each line over WebSocket, so the dashboard shows a **live terminal**.
+
+> Technical detail (the "respect-the-human" moment): if the worker's owner touches the keyboard/mouse mid-task, a **burst detector** fires, the executor **kills the whole process tree** instantly, and the task is re-queued — the human never feels a lag. Output is capped and the kill runs off the event loop so telemetry never freezes.
+
+### Scene 7 — Result, honest status & carbon proof
+When the subprocess finishes, the worker sends a **terminal status** with the **real exit code**; the master writes status/stdout/stderr/duration to SQLite — **no faked successes**. The **carbon ledger** then records the emissions a naive scheduler *would have* paid (submit-time carbon) vs what GridMind *actually* paid (run-time carbon), using a stated ~50 W estimate, and surfaces **grams of CO₂ saved + % reduction + tangible units** on the dashboard.
+
+> Technical detail (fault tolerance): if the worker disconnects mid-task (lid closed, Wi-Fi drop), the master detects the broken stream, **re-queues the task to another free node (up to 3 retries)**, and only reports an **honest failure** if every attempt is exhausted — it never silently loses work or leaves a task stuck "running".
+
+### Scene 8 — The mini-supercomputer: data-parallel chunk splitting
+This is where a room of laptops becomes one machine. The user submits **one job split into N chunks** (`POST /api/v1/jobs`, `chunks=N`). The backend creates **N child tasks that share a `parent_job_id`**, each tagged `chunk_index = 0…N-1`. They ride the normal dispatch path, so the loop **fans them out one-per-free-node** — on N free nodes they run **simultaneously**. Every node runs the **identical script**, but reads its slice from the **`GRIDMIND_CHUNK_INDEX` / `GRIDMIND_CHUNK_COUNT`** environment variables:
+```python
+block = MAX // n
+lo, hi = i*block, (i+1)*block   # this node scans only [lo, hi)
+```
+As chunks finish, the dashboard shows the **measured speedup** = `serial_secs` (sum of all chunk times) ÷ `wall_secs` (first dispatch → last completion). On 4 nodes that's ≈4×.
+
+> Technical detail: if there are **fewer free nodes than chunks**, the extras simply queue and run in **waves** as nodes free up — the whole range is always covered, the speedup is just whatever genuinely happened. The multiplier is **only shown when ≥2 nodes actually shared the work**, so it's never misleading.
+
+### Scene 9 — Looking ahead (the Carbon Forecaster)
+Running quietly alongside, the **ARIMA forecaster** produces a rolling **2-hour outlook** of grid carbon. It powers the dashboard's "Grid Outlook" strip and the Dispatcher's **explainable reasoning** ("deferring now — grid is dirty, a clean window opens in ~35 min"), so deferral decisions are transparent, not a black box.
+
+**The one-sentence version for the panel:** *"You drop a script on a dashboard; a reinforcement-learning scheduler waits for clean power and an idle laptop, ships the work over gRPC to a teammate's machine, streams the output back live, instantly backs off the moment that teammate touches their keyboard, proves how much CO₂ it saved — and can split one job across every free laptop in the room at once."*
+
+---
+
 ## 👥 Team & Work Distribution (4 Members)
 
 GridMind splits cleanly along its architecture, so each member owns one coherent subsystem end-to-end while sharing the integration seams (the gRPC contract and the dispatcher state vector). *Names/roles can be swapped to match your team.*
