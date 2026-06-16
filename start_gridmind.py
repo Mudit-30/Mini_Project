@@ -69,6 +69,24 @@ def wait_for_port_free(port: int, timeout: float = 10.0) -> bool:
 import http.client
 from urllib.parse import urlparse
 
+def gridmind_already_running() -> bool:
+    """True if a healthy GridMind backend is already serving on :8000.
+
+    Used to refuse a second launch. Without this, the pre-flight kill_port_owners()
+    would terminate a LIVE stack's processes — so accidentally double-launching
+    (e.g. hitting the VS Code Run button while the demo is running) would kill the
+    running demo. Detect-and-exit instead.
+    """
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", 8000, timeout=2)
+        conn.request("GET", "/api/v1/health")
+        resp = conn.getresponse()
+        body = resp.read().decode("utf-8", "replace")
+        conn.close()
+        return resp.status == 200 and "ok" in body.lower()
+    except Exception:
+        return False
+
 def wait_for_backend(url: str, timeout: float = BACKEND_READY_TIMEOUT) -> bool:
     """Poll the /health endpoint until it responds 200 or timeout."""
     parsed = urlparse(url)
@@ -106,6 +124,17 @@ def run():
     print("   [*] GRIDMIND: MULTI-SERVICE ORCHESTRATOR")
     print(f"   [IP] Master Node IP: {local_ip}")
     print("=" * 70)
+
+    # Guard: refuse to start a SECOND stack. kill_port_owners() below would
+    # otherwise terminate the live stack's processes — so a stray double-launch
+    # (e.g. the VS Code Run button while the demo is already running) would kill
+    # the running demo. Detect a healthy backend and exit cleanly instead.
+    if gridmind_already_running():
+        print("\n[Already running] A GridMind stack is already live on this machine.")
+        print("   Dashboard: http://localhost:3005   |   API: http://localhost:8000/docs")
+        print("   NOT starting a second copy (that would kill the running one).")
+        print("   To restart cleanly: stop the running stack first, then launch again.")
+        raise SystemExit(0)
 
     # 1. Pre-flight: kill any lingering processes on our ports
     print("\n[Pre-flight] Clearing ports...")
