@@ -176,9 +176,26 @@ def run():
         frontend_env["NODE_OPTIONS"] = "--max-old-space-size=2048"
 
         frontend_log = open(PROJECT_ROOT / "frontend.log", "w", encoding="utf-8")
-        frontend_cmd = f"{sys.executable.replace('python.exe', 'node.exe')} node_modules/next/dist/bin/next dev --port 3005"
-        # Fallback if node isn't near python (though npm run dev assumes node is in PATH)
-        frontend_cmd = "node node_modules/next/dist/bin/next dev --port 3005"
+
+        # Production mode (build once → `next start`), NOT `next dev`. The Turbopack
+        # dev server intermittently wedges on Windows — it hangs mid-compile and the
+        # page just never loads. A production build is served by a static server that
+        # never hot-recompiles, so it loads instantly and can't wedge. We build only
+        # when there's no existing production build (BUILD_ID), so restarts stay fast.
+        build_id = frontend_dir / ".next" / "BUILD_ID"
+        if not build_id.exists():
+            print("   Building frontend for production (one-time, ~15-30s)...")
+            build_proc = subprocess.run(
+                "node node_modules/next/dist/bin/next build",
+                cwd=str(frontend_dir), shell=True, env=frontend_env,
+                stdout=frontend_log, stderr=subprocess.STDOUT,
+            )
+            if build_proc.returncode != 0:
+                print("   [ERROR] Frontend build failed — check frontend.log")
+                raise SystemExit(1)
+            print("   Frontend build complete.")
+
+        frontend_cmd = "node node_modules/next/dist/bin/next start --port 3005"
         proc_frontend = subprocess.Popen(
             frontend_cmd, cwd=str(frontend_dir), shell=True, env=frontend_env,
             stdout=frontend_log, stderr=subprocess.STDOUT,
@@ -244,8 +261,9 @@ def run():
                             print(f"   Restarting Frontend ({_frontend_restarts}/{_MAX_FRONTEND_RESTARTS})... check frontend.log")
                             time.sleep(5)
                             log_new = open(PROJECT_ROOT / "frontend.log", "a", encoding="utf-8")
+                            # Production server (build already exists → no rebuild needed).
                             new_proc = subprocess.Popen(
-                                f"npm run dev -- --port 3005",
+                                "node node_modules/next/dist/bin/next start --port 3005",
                                 cwd=str(frontend_dir), shell=True, env=frontend_env,
                                 stdout=log_new, stderr=subprocess.STDOUT,
                                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
